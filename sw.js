@@ -1,15 +1,16 @@
 // ─────────────────────────────────────────────────────────────
 // Momentum SW — version horodatée pour forcer la mise à jour
-// Ce fichier change à chaque déploiement → cache invalidé auto
 // ─────────────────────────────────────────────────────────────
-const VERSION = 'momentum-v__BUILD_TS__'; // remplacé lors du build
-const CACHE   = `momentum-${Date.now()}`; // cache unique à chaque SW
+const VERSION = 'momentum-v-ui-refinement-20260705';
+const CACHE   = `momentum-${Date.now()}`;
 
 // Fichiers à mettre en cache pour le mode hors-ligne
 const PRECACHE = [
   './',
   './index.html',
   './manifest.json',
+  './momentum-refinement.css',
+  './momentum-refinement.js',
 ];
 
 // ── Installation : mise en cache initiale ──────────────────
@@ -36,6 +37,35 @@ self.addEventListener('activate', e => {
   );
 });
 
+// ── Injection légère de la couche de refonte ───────────────
+function injectRefinement(response) {
+  if (!response) return new Response('Application indisponible hors ligne.', { status: 503 });
+  return response.text().then(html => {
+    if (html.includes('momentum-refinement.css')) return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+
+    const withCss = html.replace(
+      '</head>',
+      '  <link rel="stylesheet" href="./momentum-refinement.css?v=20260705">\n</head>'
+    );
+    const injected = withCss.replace(
+      '</body>',
+      '  <script src="./momentum-refinement.js?v=20260705"></script>\n</body>'
+    );
+    const headers = new Headers(response.headers);
+    headers.delete('content-length');
+    headers.set('content-type', 'text/html; charset=utf-8');
+    return new Response(injected, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  });
+}
+
 // ── Fetch : network-first pour index.html, cache sinon ─────
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
@@ -50,9 +80,9 @@ self.addEventListener('fetch', e => {
         .then(res => {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
+          return injectRefinement(res);
         })
-        .catch(() => caches.match(e.request))
+        .catch(() => caches.match(e.request).then(injectRefinement))
     );
     return;
   }
@@ -141,10 +171,10 @@ async function triggerDailyNotif() {
 
   if (!objectives.length) {
     return self.registration.showNotification('🌅 Bonne journée !', {
-      body: 'Ouvre Chill pour voir tes actions du jour.',
+      body: 'Ouvre Ambition pour voir tes actions du jour.',
       icon:    './icon-192x192.png',
       badge:   './icon-96x96.png',
-      tag:     'daily-chill',
+      tag:     'daily-momentum',
       actions: [{ action: 'open_app', title: '📱 Ouvrir' }],
       data:    {},
     });
@@ -168,7 +198,7 @@ async function triggerDailyNotif() {
     body:               bodyLines.join('\n'),
     icon:               './icon-192x192.png',
     badge:              './icon-96x96.png',
-    tag:                'daily-chill',
+    tag:                'daily-momentum',
     renotify:           true,
     requireInteraction: pending.length > 0,
     actions,
@@ -197,7 +227,7 @@ async function validateFromNotif(objId) {
   await storeData('pending_validations', pending);
 
   return self.registration.showNotification('✅ Validé !', {
-    body:    'Sera enregistré à la prochaine ouverture de l\'app.',
+    body:    'Sera enregistré à la prochaine ouverture de l’app.',
     icon:    './icon-192x192.png',
     badge:   './icon-96x96.png',
     tag:     'validation-confirm',
