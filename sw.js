@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // Momentum SW — version horodatée pour forcer la mise à jour
 // ─────────────────────────────────────────────────────────────
-const VERSION = 'momentum-v-ui-refinement-20260710-fix-chill';
+const VERSION = 'momentum-v-ui-refinement-20260710-viewport-fix';
 const CACHE   = `momentum-${Date.now()}`;
 
 // Fichiers à mettre en cache pour le mode hors-ligne
@@ -37,7 +37,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// ── Injection légère de la couche de refonte ───────────────
+// ── Injection sûre de la couche de refonte ─────────────────
 function injectBeforeLastTag(html, tag, payload) {
   const lower = html.toLowerCase();
   const index = lower.lastIndexOf(tag.toLowerCase());
@@ -48,21 +48,23 @@ function injectBeforeLastTag(html, tag, payload) {
 function injectRefinement(response) {
   if (!response) return new Response('Application indisponible hors ligne.', { status: 503 });
   return response.text().then(html => {
-    if (html.includes('momentum-refinement.css')) return new Response(html, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
+    if (html.includes('momentum-refinement.css')) {
+      return new Response(html, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    }
 
     const withCss = injectBeforeLastTag(
       html,
       '</head>',
-      '  <link rel="stylesheet" href="./momentum-refinement.css?v=20260710-fix-chill">\n'
+      '  <link rel="stylesheet" href="./momentum-refinement.css?v=20260710-viewport-fix">\n'
     );
     const injected = injectBeforeLastTag(
       withCss,
       '</body>',
-      '  <script src="./momentum-refinement.js?v=20260710-fix-chill"></script>\n'
+      '  <script src="./momentum-refinement.js?v=20260710-viewport-fix"></script>\n'
     );
     const headers = new Headers(response.headers);
     headers.delete('content-length');
@@ -134,7 +136,6 @@ self.addEventListener('message', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const action = e.action || '';
-  const data   = e.notification.data || {};
 
   if (action.startsWith('validate_')) {
     const objId = action.replace('validate_', '');
@@ -236,7 +237,7 @@ async function validateFromNotif(objId) {
   await storeData('pending_validations', pending);
 
   return self.registration.showNotification('✅ Validé !', {
-    body:    'Sera enregistré à la prochaine ouverture de l’app.',
+    body:    'Sera enregistré à la prochaine ouverture de l\'app.',
     icon:    './icon-192x192.png',
     badge:   './icon-96x96.png',
     tag:     'validation-confirm',
