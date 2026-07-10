@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // Momentum SW — version horodatée pour forcer la mise à jour
 // ─────────────────────────────────────────────────────────────
-const VERSION = 'momentum-v-ui-refinement-20260705';
+const VERSION = 'momentum-v-ui-refinement-20260710-fix-chill';
 const CACHE   = `momentum-${Date.now()}`;
 
 // Fichiers à mettre en cache pour le mode hors-ligne
@@ -38,6 +38,13 @@ self.addEventListener('activate', e => {
 });
 
 // ── Injection légère de la couche de refonte ───────────────
+function injectBeforeLastTag(html, tag, payload) {
+  const lower = html.toLowerCase();
+  const index = lower.lastIndexOf(tag.toLowerCase());
+  if (index === -1) return html + payload;
+  return html.slice(0, index) + payload + html.slice(index);
+}
+
 function injectRefinement(response) {
   if (!response) return new Response('Application indisponible hors ligne.', { status: 503 });
   return response.text().then(html => {
@@ -47,13 +54,15 @@ function injectRefinement(response) {
       headers: response.headers,
     });
 
-    const withCss = html.replace(
+    const withCss = injectBeforeLastTag(
+      html,
       '</head>',
-      '  <link rel="stylesheet" href="./momentum-refinement.css?v=20260705">\n</head>'
+      '  <link rel="stylesheet" href="./momentum-refinement.css?v=20260710-fix-chill">\n'
     );
-    const injected = withCss.replace(
+    const injected = injectBeforeLastTag(
+      withCss,
       '</body>',
-      '  <script src="./momentum-refinement.js?v=20260705"></script>\n</body>'
+      '  <script src="./momentum-refinement.js?v=20260710-fix-chill"></script>\n'
     );
     const headers = new Headers(response.headers);
     headers.delete('content-length');
