@@ -1,5 +1,37 @@
 /* Momentum UI refinement — loaded through the service worker. */
 
+/* Viewport and safe-area guardrails */
+html, body, #root{
+  width:100% !important;
+  height:100% !important;
+  min-height:100dvh !important;
+  margin:0 !important;
+  overflow:hidden !important;
+}
+#selector, #momentum-container, #chill-root{
+  top:0 !important;
+  left:0 !important;
+  right:0 !important;
+  bottom:0 !important;
+  max-height:100dvh !important;
+}
+#momentum-container.active, #chill-root.active{
+  transform:translateY(0) !important;
+}
+#momentum-container #app{
+  height:100dvh !important;
+  min-height:100dvh !important;
+}
+.status-bar{
+  padding-top:calc(env(safe-area-inset-top,0px) + 8px) !important;
+}
+.app-back{
+  top:calc(env(safe-area-inset-top,0px) + 10px) !important;
+}
+#chill-root .page{
+  padding-top:calc(env(safe-area-inset-top,0px) + 18px) !important;
+}
+
 /* Accessible, calmer contrast system */
 :root{
   --text2:#b8b8d3 !important;
@@ -49,11 +81,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* A first-use layer */
 .momentum-onboarding{
   position:fixed;inset:0;z-index:100000;display:flex;align-items:flex-end;justify-content:center;
-  padding:20px;background:rgba(8,8,16,.84);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  padding:calc(env(safe-area-inset-top,0px) + 16px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);
+  background:rgba(8,8,16,.84);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  overflow:hidden;
 }
 .momentum-onboarding__card{
-  width:min(100%,520px);border:1px solid rgba(124,111,255,.34);border-radius:24px;
-  background:linear-gradient(160deg,#18152f,#0f0f1e);padding:24px 21px calc(22px + env(safe-area-inset-bottom,0px));
+  width:min(100%,520px);max-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 40px);
+  overflow:auto;border:1px solid rgba(124,111,255,.34);border-radius:24px;
+  background:linear-gradient(160deg,#18152f,#0f0f1e);padding:24px 21px 22px;
   box-shadow:0 22px 70px rgba(0,0,0,.48);color:#f0efff;
 }
 .momentum-onboarding__eyebrow{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:#aaa2ff;margin-bottom:8px;}
