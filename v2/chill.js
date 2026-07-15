@@ -1,6 +1,9 @@
 (function () {
   'use strict';
 
+  const TMDB_KEY = '8265bd1679663a7ea12ac168da84d2e8';
+  const RAWG_KEY = '441c433882834d408929cddf346edff1';
+
   const S = {
     get(key, fallback) {
       try {
@@ -38,7 +41,7 @@
     shell.innerHTML = `
       <article class="panel">
         <h3>Chill natif</h3>
-        <p>Première intégration native : les envies, la bucket list et l’obtenu sont lus avec les clés historiques du Chill stable. L’accès stable reste disponible en secours pendant la reprise complète.</p>
+        <p>Intégration native en cours : les envies, bucket list et obtenu utilisent les clés historiques du Chill stable. La recherche de jaquette/couverture est réactivée sur les nouveaux ajouts.</p>
         <div class="actions-row">
           <a class="secondary-btn" href="https://eps-kbapp.github.io/Momentum/" target="_blank" rel="noopener">Ouvrir Chill stable</a>
         </div>
@@ -156,9 +159,9 @@
         <label class="field"><span>Type</span><select name="type">
           ${Object.entries(typeLabels).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
         </select></label>
-        <label class="field"><span>Image / pochette URL</span><input name="image" placeholder="Optionnel" /></label>
+        <label class="field"><span>Image / pochette URL</span><input name="image" placeholder="Optionnel : sinon recherche automatique" /></label>
         <label class="field"><span>Notes</span><textarea name="notes" placeholder="Pourquoi ça te tente ? Avec qui ? Où ?"></textarea></label>
-        <button class="primary-btn" type="submit">Ajouter</button>
+        <button class="primary-btn" type="submit">Ajouter avec recherche</button>
       </form>
     `;
   }
@@ -171,19 +174,22 @@
   function renderItem(item, kind) {
     const title = item.title || item.name || item.label || 'Sans titre';
     const type = item.type || item.kind || item.category || 'autre';
-    const image = item.image || item.poster || item.cover || item.img || item.thumbnail || '';
+    const image = getImage(item);
     const notes = item.notes || item.note || item.description || item.desc || '';
     return `
       <article class="goal-card chill-item" data-chill-item="${e(item.id)}" data-kind="${kind}">
         ${image ? `<div class="chill-cover"><img src="${e(image)}" alt="" loading="lazy"></div>` : ''}
-        <header>
-          <div class="goal-title">${e(title)}</div>
-          <span class="badge">${e(typeLabels[type] || type)}</span>
-        </header>
-        ${notes ? `<p class="goal-desc">${e(notes)}</p>` : ''}
-        <div class="actions-row">
-          ${kind !== 'obtained' ? `<button class="secondary-btn" type="button" data-chill-obtain="${e(item.id)}" data-kind="${kind}">Marquer obtenu</button>` : ''}
-          <button class="secondary-btn" type="button" data-chill-delete="${e(item.id)}" data-kind="${kind}">Supprimer</button>
+        <div class="chill-item-body">
+          <header>
+            <div class="goal-title">${e(title)}</div>
+            <span class="badge">${e(typeLabels[type] || type)}</span>
+          </header>
+          ${item.coverSource ? `<p class="goal-desc"><strong>Couverture :</strong> ${e(item.coverSource)}</p>` : ''}
+          ${notes ? `<p class="goal-desc">${e(notes)}</p>` : ''}
+          <div class="actions-row">
+            ${kind !== 'obtained' ? `<button class="secondary-btn" type="button" data-chill-obtain="${e(item.id)}" data-kind="${kind}">Marquer obtenu</button>` : ''}
+            <button class="secondary-btn" type="button" data-chill-delete="${e(item.id)}" data-kind="${kind}">Supprimer</button>
+          </div>
         </div>
       </article>
     `;
@@ -222,24 +228,115 @@
       }
     });
 
-    root.addEventListener('submit', event => {
+    root.addEventListener('submit', async event => {
       const form = event.target.closest('[data-chill-form]');
       if (!form) return;
       event.preventDefault();
       const kind = form.dataset.chillForm;
       const data = Object.fromEntries(new FormData(form).entries());
+      const submit = form.querySelector('[type="submit"]');
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = 'Recherche…';
+      }
+      const cover = data.image ? { image: data.image, coverSource: 'URL manuelle' } : await findCover(data.title, data.type);
       const item = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         title: data.title,
         type: data.type || 'autre',
-        image: data.image || '',
+        image: cover.image || '',
+        poster: cover.image || '',
+        cover: cover.image || '',
+        coverSource: cover.coverSource || '',
         notes: data.notes || '',
         createdAt: today(),
       };
       mutateKind(kind, items => [item, ...items]);
       form.reset();
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = 'Ajouter avec recherche';
+      }
       rerender();
     });
+  }
+
+  async function findCover(title, type) {
+    const query = String(title || '').trim();
+    if (!query) return {};
+    const sources = coverSources(type);
+    for (const source of sources) {
+      try {
+        const result = await source(query, type);
+        if (result?.image) return result;
+      } catch (error) {
+        console.warn('Chill cover lookup failed', source.name, error);
+      }
+    }
+    return { image: '', coverSource: 'Aucune couverture trouvée automatiquement' };
+  }
+
+  function coverSources(type) {
+    if (type === 'livre') return [searchOpenLibrary];
+    if (type === 'anime' || type === 'manga') return [searchJikan, searchOpenLibrary];
+    if (type === 'film') return [searchTmdbMovie, searchOpenLibrary];
+    if (type === 'serie') return [searchTmdbTv, searchJikan];
+    if (type === 'jeu') return [searchRawg];
+    if (type === 'musique' || type === 'concert') return [searchMusicBrainz];
+    return [searchOpenLibrary, searchJikan, searchTmdbMovie, searchRawg];
+  }
+
+  async function searchOpenLibrary(query) {
+    const data = await fetchJson(`https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&limit=1`);
+    const doc = data?.docs?.[0];
+    if (!doc?.cover_i) return null;
+    return { image: `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg`, coverSource: 'OpenLibrary' };
+  }
+
+  async function searchJikan(query, type) {
+    const endpoint = type === 'manga' ? 'manga' : 'anime';
+    const data = await fetchJson(`https://api.jikan.moe/v4/${endpoint}?q=${encodeURIComponent(query)}&limit=1`);
+    const item = data?.data?.[0];
+    const image = item?.images?.jpg?.large_image_url || item?.images?.webp?.large_image_url || item?.images?.jpg?.image_url;
+    return image ? { image, coverSource: 'Jikan / MyAnimeList' } : null;
+  }
+
+  async function searchTmdbMovie(query) {
+    if (!TMDB_KEY) return null;
+    const data = await fetchJson(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&include_adult=false`);
+    const item = data?.results?.find(result => result.poster_path) || data?.results?.[0];
+    return item?.poster_path ? { image: `https://image.tmdb.org/t/p/w500${item.poster_path}`, coverSource: 'TMDB' } : null;
+  }
+
+  async function searchTmdbTv(query) {
+    if (!TMDB_KEY) return null;
+    const data = await fetchJson(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&include_adult=false`);
+    const item = data?.results?.find(result => result.poster_path) || data?.results?.[0];
+    return item?.poster_path ? { image: `https://image.tmdb.org/t/p/w500${item.poster_path}`, coverSource: 'TMDB' } : null;
+  }
+
+  async function searchRawg(query) {
+    const key = RAWG_KEY ? `&key=${RAWG_KEY}` : '';
+    const data = await fetchJson(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=1${key}`);
+    const item = data?.results?.[0];
+    return item?.background_image ? { image: item.background_image, coverSource: 'RAWG' } : null;
+  }
+
+  async function searchMusicBrainz(query) {
+    const data = await fetchJson(`https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=1`);
+    const release = data?.releases?.[0];
+    if (!release?.id) return null;
+    return { image: `https://coverartarchive.org/release/${release.id}/front-500`, coverSource: 'MusicBrainz / Cover Art Archive' };
+  }
+
+  async function fetchJson(url) {
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    return response.json();
+  }
+
+  function getImage(item) {
+    return item.image || item.poster || item.cover || item.img || item.thumbnail || item.coverUrl || item.posterUrl || item.background_image || '';
   }
 
   function getItems(kind) {
