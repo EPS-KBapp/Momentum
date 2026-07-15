@@ -20,7 +20,7 @@
           <span class="space-icon">☕</span>
           <span class="space-title">Chill</span>
           <span class="space-desc">Envies, bucket list, obtenu et progressions.</span>
-          <span class="space-meta">Module existant conservé intact</span>
+          <span class="space-meta">Module stable encapsulé sans modification</span>
         </button>
 
         <button class="space-card sport" data-open-space="sport">
@@ -46,18 +46,17 @@
       </div>
     </section>
 
-    <section class="screen" id="space-chill" aria-labelledby="chill-title">
-      <header class="space-header chill">
+    <section class="screen screen--embedded" id="space-chill" aria-labelledby="chill-title">
+      <header class="embedded-header chill">
         <button class="back-btn" data-go-home>← Accueil</button>
-        <p class="eyebrow">Espace</p>
-        <h2 id="chill-title">Chill</h2>
-        <p>Le module Chill doit rester inchangé. Cette page sert de point d’entrée temporaire avant son encapsulation dans la nouvelle coque.</p>
+        <div>
+          <p class="eyebrow">Espace stable</p>
+          <h2 id="chill-title">Chill</h2>
+        </div>
       </header>
-      <article class="panel">
-        <h3>Règle de conservation</h3>
-        <p>Chill sera intégré sans modifier ses quatre menus, ses données ni ses fonctions existantes.</p>
-        <a class="primary-link" href="../index.html">Ouvrir l’application stable actuelle</a>
-      </article>
+      <div class="legacy-frame-shell" data-chill-host>
+        <div class="legacy-loading">Chargement de Chill…</div>
+      </div>
     </section>
 
     <section class="screen" id="space-sport" aria-labelledby="sport-title" data-goal-space="sport">
