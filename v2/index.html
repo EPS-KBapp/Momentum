@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Momentum v2</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell" id="app">
+    <section class="screen active" id="home-screen" aria-labelledby="home-title">
+      <header class="home-hero">
+        <p class="eyebrow">Momentum v2</p>
+        <h1 id="home-title">Que veux-tu piloter aujourd’hui&nbsp;?</h1>
+        <p class="hero-text">Une coque commune pour organiser les envies, l’entraînement, les hobbies et le travail intellectuel.</p>
+      </header>
+
+      <div class="space-grid" aria-label="Espaces Momentum">
+        <button class="space-card chill" data-open-space="chill">
+          <span class="space-icon">☕</span>
+          <span class="space-title">Chill</span>
+          <span class="space-desc">Envies, bucket list, obtenu et progressions.</span>
+          <span class="space-meta">Module existant conservé intact</span>
+        </button>
+
+        <button class="space-card sport" data-open-space="sport">
+          <span class="space-icon">🏃</span>
+          <span class="space-title">Sport</span>
+          <span class="space-desc">Objectifs, programme, séances, tests et profil.</span>
+          <span class="space-meta" data-summary="sport">Aucun objectif pour le moment</span>
+        </button>
+
+        <button class="space-card hobbies" data-open-space="hobbies">
+          <span class="space-icon">🎸</span>
+          <span class="space-title">Hobbies</span>
+          <span class="space-desc">Lecture, guitare, expériences et moments.</span>
+          <span class="space-meta" data-summary="hobbies">Aucun objectif pour le moment</span>
+        </button>
+
+        <button class="space-card brain" data-open-space="brain">
+          <span class="space-icon">🧠</span>
+          <span class="space-title">Brain</span>
+          <span class="space-desc">Agrégation EPS, projets professionnels et productions.</span>
+          <span class="space-meta" data-summary="brain">Aucun objectif pour le moment</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="screen" id="space-chill" aria-labelledby="chill-title">
+      <header class="space-header chill">
+        <button class="back-btn" data-go-home>← Accueil</button>
+        <p class="eyebrow">Espace</p>
+        <h2 id="chill-title">Chill</h2>
+        <p>Le module Chill doit rester inchangé. Cette page sert de point d’entrée temporaire avant son encapsulation dans la nouvelle coque.</p>
+      </header>
+      <article class="panel">
+        <h3>Règle de conservation</h3>
+        <p>Chill sera intégré sans modifier ses quatre menus, ses données ni ses fonctions existantes.</p>
+        <a class="primary-link" href="../index.html">Ouvrir l’application stable actuelle</a>
+      </article>
+    </section>
+
+    <section class="screen" id="space-sport" aria-labelledby="sport-title" data-goal-space="sport">
+      <header class="space-header sport">
+        <button class="back-btn" data-go-home>← Accueil</button>
+        <p class="eyebrow">Espace</p>
+        <h2 id="sport-title">Sport</h2>
+        <p>Objectifs sportifs, programme hebdomadaire, séances réalisées, tests et profil physique.</p>
+      </header>
+      <nav class="subnav" aria-label="Navigation Sport">
+        <button class="active" data-tab="overview">Accueil</button>
+        <button data-tab="goals">Objectifs</button>
+        <button data-tab="program">Programme</button>
+        <button data-tab="sessions">Séances</button>
+        <button data-tab="profile">Tests / Profil</button>
+      </nav>
+      <div class="tab-panel active" data-panel="overview"></div>
+      <div class="tab-panel" data-panel="goals"></div>
+      <div class="tab-panel" data-panel="program"></div>
+      <div class="tab-panel" data-panel="sessions"></div>
+      <div class="tab-panel" data-panel="profile"></div>
+    </section>
+
+    <section class="screen" id="space-hobbies" aria-labelledby="hobbies-title" data-goal-space="hobbies">
+      <header class="space-header hobbies">
+        <button class="back-btn" data-go-home>← Accueil</button>
+        <p class="eyebrow">Espace</p>
+        <h2 id="hobbies-title">Hobbies</h2>
+        <p>Objectifs personnels, pratiques régulières, lecture, expériences et moments importants.</p>
+      </header>
+      <nav class="subnav" aria-label="Navigation Hobbies">
+        <button class="active" data-tab="overview">Accueil</button>
+        <button data-tab="goals">Objectifs</button>
+        <button data-tab="practices">Pratiques</button>
+        <button data-tab="books">Lecture / Expériences</button>
+      </nav>
+      <div class="tab-panel active" data-panel="overview"></div>
+      <div class="tab-panel" data-panel="goals"></div>
+      <div class="tab-panel" data-panel="practices"></div>
+      <div class="tab-panel" data-panel="books"></div>
+    </section>
+
+    <section class="screen" id="space-brain" aria-labelledby="brain-title" data-goal-space="brain">
+      <header class="space-header brain">
+        <button class="back-btn" data-go-home>← Accueil</button>
+        <p class="eyebrow">Espace</p>
+        <h2 id="brain-title">Brain</h2>
+        <p>Objectifs intellectuels, plan de travail, productions, agrégation interne EPS et projets professionnels.</p>
+      </header>
+      <nav class="subnav" aria-label="Navigation Brain">
+        <button class="active" data-tab="overview">Accueil</button>
+        <button data-tab="goals">Objectifs</button>
+        <button data-tab="workplan">Plan de travail</button>
+        <button data-tab="productions">Productions</button>
+      </nav>
+      <div class="tab-panel active" data-panel="overview"></div>
+      <div class="tab-panel" data-panel="goals"></div>
+      <div class="tab-panel" data-panel="workplan"></div>
+      <div class="tab-panel" data-panel="productions"></div>
+    </section>
+  </main>
+
+  <script src="./goals-core.js"></script>
+  <script src="./sport.js"></script>
+  <script src="./hobbies.js"></script>
+  <script src="./brain.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
