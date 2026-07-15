@@ -7,11 +7,11 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Momentum</title>
-  <link rel="stylesheet" href="./styles.css?v=20260715-chill-settings1" />
-  <link rel="stylesheet" href="./overrides.css?v=20260715-chill-settings1" />
+  <link rel="stylesheet" href="./styles.css?v=20260715-chill-mobile-fix1" />
+  <link rel="stylesheet" href="./overrides.css?v=20260715-chill-mobile-fix1" />
 </head>
 <body data-bg-theme="dark">
-  <main class="shell" id="app" data-build="chill-settings1">
+  <main class="shell" id="app" data-build="chill-mobile-fix1">
     <section class="screen active" id="home-screen" aria-labelledby="home-title">
       <header class="home-hero">
         <div class="home-topbar">
@@ -24,7 +24,7 @@
 
       <article class="panel settings-panel" data-settings-panel hidden>
         <h3>Réglage du fond</h3>
-        <p>Change uniquement l’ambiance générale du fond. Les espaces gardent leur identité Chill, Sport, Hobbies et Brain.</p>
+        <p>Change uniquement l’ambiance générale du fond. Le choix s’applique à tous les espaces : Chill, Sport, Hobbies et Brain.</p>
         <div class="theme-options" role="group" aria-label="Choix du fond">
           <button type="button" data-bg-choice="dark">Noir</button>
           <button type="button" data-bg-choice="light">Blanc</button>
@@ -141,12 +141,12 @@
     </section>
   </main>
 
-  <script src="./goals-core.js?v=20260715-chill-settings1"></script>
-  <script src="./chill.js?v=20260715-chill-settings1"></script>
-  <script src="./sport.js?v=20260715-chill-settings1"></script>
-  <script src="./hobbies.js?v=20260715-chill-settings1"></script>
-  <script src="./brain.js?v=20260715-chill-settings1"></script>
-  <script src="./app.js?v=20260715-chill-settings1"></script>
+  <script src="./goals-core.js?v=20260715-chill-mobile-fix1"></script>
+  <script src="./chill.js?v=20260715-chill-mobile-fix1"></script>
+  <script src="./sport.js?v=20260715-chill-mobile-fix1"></script>
+  <script src="./hobbies.js?v=20260715-chill-mobile-fix1"></script>
+  <script src="./brain.js?v=20260715-chill-mobile-fix1"></script>
+  <script src="./app.js?v=20260715-chill-mobile-fix1"></script>
   <script>
     (function () {
       const key = 'momentum_bg_theme';
@@ -156,6 +156,7 @@
       function apply(theme) {
         const value = theme || 'dark';
         document.body.dataset.bgTheme = value;
+        document.documentElement.dataset.bgTheme = value;
         buttons.forEach(button => button.classList.toggle('active', button.dataset.bgChoice === value));
         localStorage.setItem(key, value);
       }
