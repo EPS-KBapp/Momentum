@@ -14,6 +14,7 @@
   const state = { openSessionId: null };
 
   function render(spaceRoot) {
+    if (!spaceRoot) return;
     renderOverview(spaceRoot);
     renderGoals(spaceRoot);
     renderPlanning(spaceRoot);
@@ -32,7 +33,7 @@
     panel.innerHTML = `
       <article class="panel">
         <h3>Parcours Sport</h3>
-        <p>L’espace Sport fonctionne maintenant en 3 gestes : <strong>Objectifs</strong> pour savoir où tu vas, <strong>Planning</strong> pour prévoir puis ouvrir une séance et compléter le réalisé, <strong>Bilan & tests</strong> pour suivre ton profil et tes progrès.</p>
+        <p>L’espace Sport fonctionne en 3 gestes : <strong>Objectifs</strong> pour savoir où tu vas, <strong>Planning</strong> pour prévoir puis ouvrir une séance et compléter le réalisé, <strong>Bilan & tests</strong> pour suivre ton profil et tes progrès.</p>
       </article>
       <div class="metric-grid">
         <article class="metric-card"><strong>${activeGoals.length}</strong><span>objectif(s) actif(s)</span></article>
@@ -70,8 +71,8 @@
     if (state.openSessionId && !actions.some(action => action.id === state.openSessionId)) state.openSessionId = null;
     panel.innerHTML = `
       <article class="panel">
-        <h3>Planning</h3>
-        <p>Prévois une séance, puis ouvre-la plus tard pour compléter ce qui a réellement été fait. Une séance n’est considérée comme validée que lorsque les champs essentiels du réalisé sont renseignés.</p>
+        <h3>Planning unique</h3>
+        <p>Tu programmes une séance, puis tu l’ouvres directement ici pour compléter le résultat obtenu. Il n’y a plus d’onglet séparé pour réaliser la séance.</p>
       </article>
       ${actionForm('sport', categories, {
         title: 'Prévoir une séance',
@@ -81,7 +82,7 @@
       })}
       <article class="panel">
         <h3>Séances programmées</h3>
-        <p>Ouvre une séance pour renseigner le résultat obtenu. Tu peux aussi corriger son statut : prévu, réalisé, partiel ou non fait.</p>
+        <p>Utilise <strong>Ouvrir / compléter</strong> pour renseigner le réalisé, modifier un statut ou remettre une séance en prévu.</p>
       </article>
       ${renderSessionList(actions)}
     `;
@@ -131,6 +132,7 @@
 
   function renderSessionCard(action, log) {
     const isOpen = state.openSessionId === action.id;
+    const buttonLabel = isOpen ? 'Fermer la séance' : (action.status === 'planned' ? 'Ouvrir / compléter' : 'Ouvrir / modifier');
     return `
       <article class="goal-card" data-session-card="${action.id}">
         <header>
@@ -144,9 +146,9 @@
           ${action.plannedIntensity ? `<span>${e(action.plannedIntensity)}</span>` : ''}
         </div>
         ${action.plannedContent ? `<p class="goal-desc"><strong>Prévu :</strong> ${e(action.plannedContent)}</p>` : ''}
-        ${log ? `<p class="goal-desc"><strong>Réalisé :</strong> ${e(log.realContent || 'Résultat renseigné')}</p>` : ''}
+        ${log ? `<p class="goal-desc"><strong>Résultat :</strong> ${e(log.realContent || 'Résultat renseigné')}</p>` : ''}
         <div class="actions-row">
-          <button class="primary-btn" type="button" data-open-session="${action.id}">${isOpen ? 'Fermer la séance' : 'Ouvrir / compléter'}</button>
+          <button class="primary-btn" type="button" data-open-session="${action.id}">${buttonLabel}</button>
           ${action.status !== 'planned' ? `<button class="secondary-btn" type="button" data-session-status="planned" data-session-id="${action.id}">Remettre prévu</button>` : ''}
           <button class="secondary-btn" type="button" data-delete-session="${action.id}">Supprimer</button>
         </div>
@@ -180,14 +182,8 @@
   }
 
   function bindPlanning(panel) {
-    const actionCreateForm = panel.querySelector('[data-action-form="sport"]');
-    actionCreateForm?.addEventListener('submit', event => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(actionCreateForm).entries());
-      MomentumGoals.createAction({ ...data, space: 'sport' });
-      state.openSessionId = null;
-      render(document.querySelector('#space-sport'));
-    });
+    if (panel.dataset.sportPlanningBound === 'true') return;
+    panel.dataset.sportPlanningBound = 'true';
 
     panel.addEventListener('click', event => {
       const openId = event.target.closest('[data-open-session]')?.dataset.openSession;
@@ -196,32 +192,52 @@
       const statusButton = event.target.closest('[data-session-status]');
 
       if (openId) {
+        event.preventDefault();
         state.openSessionId = state.openSessionId === openId ? null : openId;
-        render(document.querySelector('#space-sport'));
+        rerenderSport();
+        return;
       }
       if (close) {
+        event.preventDefault();
         state.openSessionId = null;
-        render(document.querySelector('#space-sport'));
+        rerenderSport();
+        return;
       }
       if (deleteId) {
+        event.preventDefault();
         MomentumGoals.deleteAction(deleteId);
         if (state.openSessionId === deleteId) state.openSessionId = null;
-        render(document.querySelector('#space-sport'));
+        rerenderSport();
+        return;
       }
       if (statusButton) {
+        event.preventDefault();
         const id = statusButton.dataset.sessionId;
         const status = statusButton.dataset.sessionStatus;
         setSessionStatus(id, status);
         state.openSessionId = null;
-        render(document.querySelector('#space-sport'));
+        rerenderSport();
       }
     });
 
     panel.addEventListener('submit', event => {
-      const form = event.target.closest('[data-session-result]');
-      if (!form) return;
-      event.preventDefault();
-      saveSessionResult(form.dataset.sessionResult, Object.fromEntries(new FormData(form).entries()));
+      const actionCreateForm = event.target.closest('[data-action-form="sport"]');
+      const resultForm = event.target.closest('[data-session-result]');
+
+      if (actionCreateForm) {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(actionCreateForm).entries());
+        MomentumGoals.createAction({ ...data, space: 'sport' });
+        actionCreateForm.reset();
+        state.openSessionId = null;
+        rerenderSport();
+        return;
+      }
+
+      if (resultForm) {
+        event.preventDefault();
+        saveSessionResult(resultForm.dataset.sessionResult, Object.fromEntries(new FormData(resultForm).entries()));
+      }
     });
   }
 
@@ -234,7 +250,7 @@
       clearSessionLog(actionId);
       MomentumGoals.updateAction(actionId, { status: 'planned' });
       state.openSessionId = null;
-      render(document.querySelector('#space-sport'));
+      rerenderSport();
       return;
     }
 
@@ -260,7 +276,7 @@
     });
     MomentumGoals.updateAction(actionId, { status });
     state.openSessionId = null;
-    render(document.querySelector('#space-sport'));
+    rerenderSport();
   }
 
   function setSessionStatus(actionId, status) {
@@ -275,29 +291,38 @@
   }
 
   function bindProfile(panel) {
-    const profileForm = panel.querySelector('[data-sport-profile]');
-    profileForm?.addEventListener('submit', event => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(profileForm).entries());
-      const existing = MomentumGoals.listItems('sport_profile')[0];
-      if (existing) MomentumGoals.updateItem('sport_profile', existing.id, data);
-      else MomentumGoals.createItem('sport_profile', data);
-      render(document.querySelector('#space-sport'));
-    });
+    if (panel.dataset.sportProfileBound === 'true') return;
+    panel.dataset.sportProfileBound = 'true';
 
-    const testForm = panel.querySelector('[data-sport-test]');
-    testForm?.addEventListener('submit', event => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(testForm).entries());
-      MomentumGoals.createItem('sport_tests', { ...data, ...analyzeTest(data.type, data.raw) });
-      render(document.querySelector('#space-sport'));
+    panel.addEventListener('submit', event => {
+      const profileForm = event.target.closest('[data-sport-profile]');
+      const testForm = event.target.closest('[data-sport-test]');
+
+      if (profileForm) {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(profileForm).entries());
+        const existing = MomentumGoals.listItems('sport_profile')[0];
+        if (existing) MomentumGoals.updateItem('sport_profile', existing.id, data);
+        else MomentumGoals.createItem('sport_profile', data);
+        rerenderSport();
+        return;
+      }
+
+      if (testForm) {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(testForm).entries());
+        MomentumGoals.createItem('sport_tests', { ...data, ...analyzeTest(data.type, data.raw) });
+        testForm.reset();
+        rerenderSport();
+      }
     });
 
     panel.addEventListener('click', event => {
       const id = event.target.closest('[data-delete-test]')?.dataset.deleteTest;
       if (id) {
+        event.preventDefault();
         MomentumGoals.deleteItem('sport_tests', id);
-        render(document.querySelector('#space-sport'));
+        rerenderSport();
       }
     });
   }
@@ -336,6 +361,14 @@
 
   function renderLogMini(log) {
     return `<div class="goal-card"><div class="goal-title">${e(log.title)}</div><div class="goal-meta"><span>${e(log.date)}</span>${log.realDuration ? `<span>${log.realDuration} min</span>` : ''}${log.feeling ? `<span>Ressenti ${log.feeling}/10</span>` : ''}</div>${log.realContent ? `<p class="goal-desc">${e(log.realContent)}</p>` : ''}</div>`;
+  }
+
+  function rerenderSport() {
+    render(document.querySelector('#space-sport'));
+    if (window.MomentumGoals?.getGoalSummary) {
+      const summary = document.querySelector('[data-summary="sport"]');
+      if (summary) summary.textContent = MomentumGoals.getGoalSummary('sport');
+    }
   }
 
   function e(value) {
