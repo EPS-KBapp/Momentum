@@ -11,11 +11,12 @@
     ['autre', 'Autre'],
   ];
 
+  const state = { openSessionId: null };
+
   function render(spaceRoot) {
     renderOverview(spaceRoot);
     renderGoals(spaceRoot);
-    renderProgram(spaceRoot);
-    renderSessions(spaceRoot);
+    renderPlanning(spaceRoot);
     renderProfile(spaceRoot);
   }
 
@@ -23,28 +24,29 @@
     const panel = root.querySelector('[data-panel="overview"]');
     const goals = MomentumGoals.listGoals('sport');
     const activeGoals = goals.filter(goal => goal.status === 'active');
-    const planned = MomentumGoals.listActions('sport').filter(action => action.status === 'planned');
-    const doneActions = MomentumGoals.listActions('sport').filter(action => action.status === 'done' || action.status === 'partial');
-    const logs = MomentumGoals.listLogs('sport');
+    const actions = MomentumGoals.listActions('sport');
+    const planned = actions.filter(action => action.status === 'planned');
+    const validated = actions.filter(action => ['done', 'partial', 'skipped'].includes(action.status));
     const tests = MomentumGoals.listItems('sport_tests');
+    const logs = MomentumGoals.listLogs('sport');
     panel.innerHTML = `
       <article class="panel">
         <h3>Parcours Sport</h3>
-        <p>L’espace Sport fonctionne en 4 étapes simples : <strong>Objectifs</strong> pour dire où tu veux aller, <strong>Planning</strong> pour prévoir les séances, <strong>Réaliser</strong> pour noter ce qui a vraiment été fait, puis <strong>Bilan & tests</strong> pour suivre ton état et tes progrès.</p>
+        <p>L’espace Sport fonctionne maintenant en 3 gestes : <strong>Objectifs</strong> pour savoir où tu vas, <strong>Planning</strong> pour prévoir puis ouvrir une séance et compléter le réalisé, <strong>Bilan & tests</strong> pour suivre ton profil et tes progrès.</p>
       </article>
       <div class="metric-grid">
         <article class="metric-card"><strong>${activeGoals.length}</strong><span>objectif(s) actif(s)</span></article>
-        <article class="metric-card"><strong>${planned.length}</strong><span>séance(s) à faire</span></article>
-        <article class="metric-card"><strong>${doneActions.length}</strong><span>séance(s) marquée(s) réalisée(s)</span></article>
+        <article class="metric-card"><strong>${planned.length}</strong><span>séance(s) prévue(s)</span></article>
+        <article class="metric-card"><strong>${validated.length}</strong><span>séance(s) renseignée(s)</span></article>
         <article class="metric-card"><strong>${tests.length}</strong><span>test(s) enregistré(s)</span></article>
       </div>
       <article class="panel">
-        <h3>Prochaine séance prévue</h3>
+        <h3>Prochaine séance</h3>
         ${planned[0] ? renderActionMini(planned[0]) : '<p>Aucune séance prévue. Ajoute une séance dans <strong>Planning</strong>.</p>'}
       </article>
       <article class="panel">
-        <h3>Dernière réalisation</h3>
-        ${logs[0] ? renderLogMini(logs[0]) : '<p>Aucune séance réalisée enregistrée pour le moment.</p>'}
+        <h3>Dernière séance renseignée</h3>
+        ${logs[0] ? renderLogMini(logs[0]) : '<p>Aucun résultat de séance enregistré pour le moment.</p>'}
       </article>
     `;
   }
@@ -53,8 +55,8 @@
     const panel = root.querySelector('[data-panel="goals"]');
     panel.innerHTML = `
       <article class="panel">
-        <h3>1. Objectifs</h3>
-        <p>Écris ce que tu veux atteindre : reprendre régulièrement, préparer un 10 km, améliorer la VMA, renforcer le dos, perdre de la fatigue, etc.</p>
+        <h3>Objectifs</h3>
+        <p>Écris ce que tu veux atteindre : reprendre régulièrement, préparer un 10 km, améliorer la VMA, renforcer le dos, réduire la fatigue, etc.</p>
       </article>
       ${goalForm('sport', categories)}
       ${goalList('sport')}
@@ -62,12 +64,14 @@
     bindGoalForm(panel, 'sport');
   }
 
-  function renderProgram(root) {
+  function renderPlanning(root) {
     const panel = root.querySelector('[data-panel="program"]');
+    const actions = MomentumGoals.listActions('sport');
+    if (state.openSessionId && !actions.some(action => action.id === state.openSessionId)) state.openSessionId = null;
     panel.innerHTML = `
       <article class="panel">
-        <h3>2. Planning</h3>
-        <p>Ici tu prévois les séances à venir. Une séance prévue n’est pas encore réalisée : elle sert de plan.</p>
+        <h3>Planning</h3>
+        <p>Prévois une séance, puis ouvre-la plus tard pour compléter ce qui a réellement été fait. Une séance n’est considérée comme validée que lorsque les champs essentiels du réalisé sont renseignés.</p>
       </article>
       ${actionForm('sport', categories, {
         title: 'Prévoir une séance',
@@ -76,38 +80,12 @@
         content: 'Objectif, exercices, séries, distance, allure ou contenu prévu',
       })}
       <article class="panel">
-        <h3>Séances du planning</h3>
-        <p>Tu peux marquer une séance comme réalisée rapidement ici, ou la valider plus précisément dans <strong>Réaliser</strong>.</p>
+        <h3>Séances programmées</h3>
+        <p>Ouvre une séance pour renseigner le résultat obtenu. Tu peux aussi corriger son statut : prévu, réalisé, partiel ou non fait.</p>
       </article>
-      ${actionList('sport')}
+      ${renderSessionList(actions)}
     `;
-    bindActionForm(panel, 'sport');
-  }
-
-  function renderSessions(root) {
-    const panel = root.querySelector('[data-panel="sessions"]');
-    panel.innerHTML = `
-      <article class="panel">
-        <h3>3. Réaliser</h3>
-        <p>Ici tu notes ce qui a vraiment été fait : durée réelle, ressenti, contenu, séance partielle ou non faite. C’est le journal d’entraînement.</p>
-      </article>
-      ${logForm('sport', {
-        title: 'Valider le réalisé',
-        placeholder: 'Ex. Footing ajouté sans planification',
-        content: 'Durée, distance, exercices réalisés, sensations, douleur éventuelle',
-      })}
-      <article class="panel">
-        <h3>Corriger le statut d’une séance</h3>
-        <p>Si tu as marqué une séance comme réalisée par erreur, utilise <strong>Remettre prévu</strong> ici. Elle retournera dans les séances à faire.</p>
-      </article>
-      ${actionList('sport')}
-      <article class="panel">
-        <h3>Journal des séances réalisées</h3>
-      </article>
-      ${logList('sport')}
-    `;
-    bindLogForm(panel, 'sport');
-    bindActionForm(panel, 'sport');
+    bindPlanning(panel);
   }
 
   function renderProfile(root) {
@@ -115,7 +93,7 @@
     const profile = MomentumGoals.listItems('sport_profile')[0] || {};
     panel.innerHTML = `
       <article class="panel">
-        <h3>4. Bilan & tests</h3>
+        <h3>Bilan & tests</h3>
         <p>Cet onglet sert à renseigner ton profil sportif et quelques tests simples pour mieux interpréter tes séances.</p>
       </article>
       <article class="panel">
@@ -145,6 +123,157 @@
     bindProfile(panel);
   }
 
+  function renderSessionList(actions) {
+    if (!actions.length) return '<div class="empty">Aucune séance programmée pour le moment.</div>';
+    const logs = MomentumGoals.listLogs('sport');
+    return `<div class="goal-list">${actions.map(action => renderSessionCard(action, logs.find(log => log.actionId === action.id))).join('')}</div>`;
+  }
+
+  function renderSessionCard(action, log) {
+    const isOpen = state.openSessionId === action.id;
+    return `
+      <article class="goal-card" data-session-card="${action.id}">
+        <header>
+          <div class="goal-title">${e(action.title)}</div>
+          <span class="badge">${MomentumGoals.statusLabel(action.status)}</span>
+        </header>
+        <div class="goal-meta">
+          <span>${e(action.date || 'Sans date')}</span>
+          <span>${e(action.category || 'Sans catégorie')}</span>
+          ${action.plannedDuration ? `<span>${action.plannedDuration} min prévues</span>` : ''}
+          ${action.plannedIntensity ? `<span>${e(action.plannedIntensity)}</span>` : ''}
+        </div>
+        ${action.plannedContent ? `<p class="goal-desc"><strong>Prévu :</strong> ${e(action.plannedContent)}</p>` : ''}
+        ${log ? `<p class="goal-desc"><strong>Réalisé :</strong> ${e(log.realContent || 'Résultat renseigné')}</p>` : ''}
+        <div class="actions-row">
+          <button class="primary-btn" type="button" data-open-session="${action.id}">${isOpen ? 'Fermer la séance' : 'Ouvrir / compléter'}</button>
+          ${action.status !== 'planned' ? `<button class="secondary-btn" type="button" data-session-status="planned" data-session-id="${action.id}">Remettre prévu</button>` : ''}
+          <button class="secondary-btn" type="button" data-delete-session="${action.id}">Supprimer</button>
+        </div>
+        ${isOpen ? renderSessionResultForm(action, log) : ''}
+      </article>
+    `;
+  }
+
+  function renderSessionResultForm(action, log) {
+    const status = log?.status || action.status || 'done';
+    const selectedStatus = ['done', 'partial', 'skipped', 'planned'].includes(status) ? status : 'done';
+    return `
+      <form class="goal-form" data-session-result="${action.id}">
+        <label class="field"><span>Statut</span><select name="status">
+          <option value="done" ${selectedStatus === 'done' ? 'selected' : ''}>Réalisé</option>
+          <option value="partial" ${selectedStatus === 'partial' ? 'selected' : ''}>Partiel</option>
+          <option value="skipped" ${selectedStatus === 'skipped' ? 'selected' : ''}>Non fait</option>
+          <option value="planned" ${selectedStatus === 'planned' ? 'selected' : ''}>Prévu</option>
+        </select></label>
+        <label class="field"><span>Date réalisée</span><input name="date" type="date" value="${e(log?.date || MomentumGoals.today())}" /></label>
+        <label class="field"><span>Durée réelle</span><input name="realDuration" type="number" min="0" placeholder="minutes" value="${e(log?.realDuration || '')}" /></label>
+        <label class="field"><span>Ressenti</span><input name="feeling" type="number" min="1" max="10" placeholder="1 à 10" value="${e(log?.feeling || '')}" /></label>
+        <label class="field"><span>Résultat obtenu</span><textarea name="realContent" placeholder="Ce qui a réellement été fait : distance, exercices, séries, sensations, douleur éventuelle…">${e(log?.realContent || '')}</textarea></label>
+        <div class="actions-row">
+          <button class="primary-btn" type="submit">Valider la séance</button>
+          <button class="secondary-btn" type="button" data-close-session>Annuler</button>
+        </div>
+        <p class="goal-desc">Pour valider en réalisé ou partiel, renseigne au minimum la durée réelle et le résultat obtenu. Pour non fait, indique simplement la raison dans le résultat obtenu.</p>
+      </form>
+    `;
+  }
+
+  function bindPlanning(panel) {
+    const actionCreateForm = panel.querySelector('[data-action-form="sport"]');
+    actionCreateForm?.addEventListener('submit', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(actionCreateForm).entries());
+      MomentumGoals.createAction({ ...data, space: 'sport' });
+      state.openSessionId = null;
+      render(document.querySelector('#space-sport'));
+    });
+
+    panel.addEventListener('click', event => {
+      const openId = event.target.closest('[data-open-session]')?.dataset.openSession;
+      const close = event.target.closest('[data-close-session]');
+      const deleteId = event.target.closest('[data-delete-session]')?.dataset.deleteSession;
+      const statusButton = event.target.closest('[data-session-status]');
+
+      if (openId) {
+        state.openSessionId = state.openSessionId === openId ? null : openId;
+        render(document.querySelector('#space-sport'));
+      }
+      if (close) {
+        state.openSessionId = null;
+        render(document.querySelector('#space-sport'));
+      }
+      if (deleteId) {
+        MomentumGoals.deleteAction(deleteId);
+        if (state.openSessionId === deleteId) state.openSessionId = null;
+        render(document.querySelector('#space-sport'));
+      }
+      if (statusButton) {
+        const id = statusButton.dataset.sessionId;
+        const status = statusButton.dataset.sessionStatus;
+        setSessionStatus(id, status);
+        state.openSessionId = null;
+        render(document.querySelector('#space-sport'));
+      }
+    });
+
+    panel.addEventListener('submit', event => {
+      const form = event.target.closest('[data-session-result]');
+      if (!form) return;
+      event.preventDefault();
+      saveSessionResult(form.dataset.sessionResult, Object.fromEntries(new FormData(form).entries()));
+    });
+  }
+
+  function saveSessionResult(actionId, values) {
+    const status = values.status || 'done';
+    const realContent = String(values.realContent || '').trim();
+    const realDuration = Number(values.realDuration || 0);
+
+    if (status === 'planned') {
+      clearSessionLog(actionId);
+      MomentumGoals.updateAction(actionId, { status: 'planned' });
+      state.openSessionId = null;
+      render(document.querySelector('#space-sport'));
+      return;
+    }
+
+    if ((status === 'done' || status === 'partial') && (!realDuration || !realContent)) {
+      alert('Pour valider une séance réalisée ou partielle, renseigne au minimum la durée réelle et le résultat obtenu.');
+      return;
+    }
+
+    if (status === 'skipped' && !realContent) {
+      alert('Pour passer une séance en non fait, indique la raison dans le résultat obtenu.');
+      return;
+    }
+
+    clearSessionLog(actionId);
+    MomentumGoals.createLog({
+      space: 'sport',
+      actionId,
+      status,
+      date: values.date || MomentumGoals.today(),
+      realDuration,
+      feeling: values.feeling || '',
+      realContent,
+    });
+    MomentumGoals.updateAction(actionId, { status });
+    state.openSessionId = null;
+    render(document.querySelector('#space-sport'));
+  }
+
+  function setSessionStatus(actionId, status) {
+    if (status === 'planned') clearSessionLog(actionId);
+    MomentumGoals.updateAction(actionId, { status });
+  }
+
+  function clearSessionLog(actionId) {
+    MomentumGoals.listLogs('sport')
+      .filter(log => log.actionId === actionId)
+      .forEach(log => MomentumGoals.deleteLog(log.id));
+  }
+
   function bindProfile(panel) {
     const profileForm = panel.querySelector('[data-sport-profile]');
     profileForm?.addEventListener('submit', event => {
@@ -164,8 +293,6 @@
       render(document.querySelector('#space-sport'));
     });
 
-    if (panel.dataset.sportProfileBound === 'true') return;
-    panel.dataset.sportProfileBound = 'true';
     panel.addEventListener('click', event => {
       const id = event.target.closest('[data-delete-test]')?.dataset.deleteTest;
       if (id) {
