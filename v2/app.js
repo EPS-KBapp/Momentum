@@ -2,6 +2,7 @@
   'use strict';
 
   const modules = {
+    chill: window.MomentumChill,
     sport: window.MomentumSport,
     hobbies: window.MomentumHobbies,
     brain: window.MomentumBrain,
@@ -23,8 +24,7 @@
 
   function openSpace(space) {
     showScreen(`#space-${space}`);
-    if (space === 'chill') initLegacyChill();
-    else renderSpace(space);
+    renderSpace(space);
   }
 
   function goHome() {
@@ -43,64 +43,6 @@
       const el = qs(`[data-summary="${space}"]`);
       if (el) el.textContent = MomentumGoals.getGoalSummary(space);
     });
-  }
-
-  function initLegacyChill() {
-    const host = qs('[data-chill-host]');
-    if (!host) return;
-
-    const isOfficialPages = location.hostname === 'eps-kbapp.github.io';
-    const warning = qs('[data-chill-warning]');
-    const stableLink = qs('[data-open-stable-chill]');
-    if (warning) warning.hidden = isOfficialPages;
-    if (stableLink) stableLink.hidden = isOfficialPages;
-
-    let frame = qs('iframe', host);
-    if (!frame) {
-      let loading = qs('.legacy-loading', host);
-      if (!loading) {
-        loading = document.createElement('div');
-        loading.className = 'legacy-loading';
-        loading.textContent = 'Chargement de Chill…';
-        host.appendChild(loading);
-      }
-      frame = document.createElement('iframe');
-      frame.className = 'legacy-frame';
-      frame.title = 'Chill — module existant';
-      frame.src = '../index.html?momentum_v2=chill';
-      frame.addEventListener('load', () => openChillInFrame(frame));
-      host.appendChild(frame);
-    } else {
-      openChillInFrame(frame);
-    }
-  }
-
-  function openChillInFrame(frame) {
-    const loading = frame.parentElement?.querySelector('.legacy-loading');
-    const win = frame.contentWindow;
-    if (!win) return;
-
-    let attempts = 0;
-    const maxAttempts = 40;
-    const timer = setInterval(() => {
-      attempts += 1;
-      try {
-        if (typeof win.enterApp === 'function') {
-          win.enterApp('chill');
-          if (loading) loading.remove();
-          frame.classList.add('ready');
-          clearInterval(timer);
-        }
-      } catch (error) {
-        clearInterval(timer);
-        if (loading) loading.textContent = 'Chill n’a pas pu être ouvert automatiquement. Tu peux réessayer en revenant à l’accueil.';
-        console.error('Legacy Chill bridge:', error);
-      }
-      if (attempts >= maxAttempts) {
-        clearInterval(timer);
-        if (loading) loading.textContent = 'Chill met trop de temps à répondre. Recharge la page v2 pour réessayer.';
-      }
-    }, 150);
   }
 
   function bindShell() {
@@ -205,9 +147,7 @@
           ${action.plannedIntensity ? `<span>${escapeHtml(action.plannedIntensity)}</span>` : ''}
         </div>
         ${action.plannedContent ? `<p class="goal-desc">${escapeHtml(action.plannedContent)}</p>` : ''}
-        <div class="actions-row">
-          <button class="secondary-btn" data-delete-action="${action.id}">Supprimer</button>
-        </div>
+        <div class="actions-row"><button class="secondary-btn" data-delete-action="${action.id}">Supprimer</button></div>
       </article>
     `).join('')}</div>`;
   };
