@@ -47,14 +47,16 @@
     </section>
 
     <section class="screen screen--embedded" id="space-chill" aria-labelledby="chill-title">
-      <header class="embedded-header chill">
-        <button class="back-btn" data-go-home>← Accueil</button>
-        <div>
-          <p class="eyebrow">Espace stable</p>
-          <h2 id="chill-title">Chill</h2>
-        </div>
-      </header>
-      <div class="legacy-frame-shell" data-chill-host>
+      <h2 class="sr-only" id="chill-title">Chill</h2>
+      <div class="embedded-toolbar chill">
+        <button class="back-btn embedded-back" data-go-home>← Accueil</button>
+        <span class="embedded-title">Chill</span>
+        <a class="embedded-stable-link" data-open-stable-chill href="https://eps-kbapp.github.io/Momentum/" target="_blank" rel="noopener">Ouvrir stable</a>
+      </div>
+      <div class="legacy-origin-warning" data-chill-warning hidden>
+        Tu testes depuis un domaine différent de GitHub Pages. Tes données Chill ne sont pas effacées : elles restent sur l’application stable. Pour les voir, ouvre la version stable.
+      </div>
+      <div class="legacy-shell" data-chill-host>
         <div class="legacy-loading">Chargement de Chill…</div>
       </div>
     </section>
