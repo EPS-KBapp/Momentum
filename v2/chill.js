@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const state = { tab: 'w', activeListId: null };
+  const state = { tab: 'w', activeListId: null, form: null };
   const CATS = [
     ['livre', '📚 Livre'], ['film', '🎬 Film'], ['série', '📺 Série'], ['anime', '⛩️ Anime'],
     ['manga/bd', '📖 Manga / BD'], ['jeu vidéo', '🎮 Jeu vidéo'], ['jeu de société', '🎲 Jeu de société'],
@@ -39,6 +39,10 @@
       .replace(/'/g, '&#039;');
   }
 
+  function arrayish(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
   function readData() {
     let wishLists = sGet('wlists', null);
     if (!wishLists) {
@@ -50,16 +54,29 @@
     if (!Array.isArray(wishLists) || !wishLists.length) {
       wishLists = [{ id: uid(), name: 'Mes envies', icon: '🎁', wishes: [] }];
     }
-    const savedActive = sGet('wlists_active', wishLists[0].id);
-    state.activeListId = wishLists.some(list => list.id === (state.activeListId || savedActive))
-      ? (state.activeListId || savedActive)
-      : wishLists[0].id;
 
-    return {
-      wishLists,
-      buckets: arrayish(sGet('b', [])),
-      accs: arrayish(sGet('a', [])),
-    };
+    wishLists.forEach(list => {
+      if (!list.id) list.id = uid();
+      if (!Array.isArray(list.wishes)) list.wishes = [];
+      list.wishes.forEach(wish => { if (!wish.id) wish.id = uid(); });
+    });
+
+    const buckets = arrayish(sGet('b', [])).map(item => {
+      if (!item.id) item.id = uid();
+      return item;
+    });
+    const accs = arrayish(sGet('a', [])).map(item => {
+      if (!item.id) item.id = uid();
+      return item;
+    });
+
+    const savedActive = sGet('wlists_active', wishLists[0].id);
+    const wantedId = state.activeListId || savedActive;
+    state.activeListId = wishLists.some(list => list.id === wantedId) ? wantedId : wishLists[0].id;
+
+    const data = { wishLists, buckets, accs };
+    writeData(data);
+    return data;
   }
 
   function writeData(data) {
@@ -67,10 +84,6 @@
     sSet('wlists_active', state.activeListId);
     sSet('b', data.buckets);
     sSet('a', data.accs);
-  }
-
-  function arrayish(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function allWishes(data) {
@@ -148,9 +161,11 @@
         <p>Liste active : <strong>${escapeHtml(list.icon || '🎁')} ${escapeHtml(list.name || 'Mes envies')}</strong></p>
         ${renderListBar(data)}
         <div class="chill-actions">
-          <button class="chill-btn primary" data-add-wish>+ Ajouter une envie</button>
-          <button class="chill-btn" data-add-wishlist>+ Nouvelle liste</button>
+          <button class="chill-btn primary" data-open-chill-form="wish">+ Ajouter une envie</button>
+          <button class="chill-btn" data-open-chill-form="wishlist">+ Nouvelle liste</button>
         </div>
+        ${state.form === 'wish' ? renderWishForm() : ''}
+        ${state.form === 'wishlist' ? renderWishListForm() : ''}
       </section>
       ${wishes.length ? `<div class="chill-grid">${wishes.map(wish => renderCard(wish, 'wish')).join('')}</div>` : '<div class="chill-empty">Aucune envie active dans cette liste.</div>'}
     `;
@@ -168,7 +183,8 @@
       <section class="chill-panel">
         <h2>Bucket List</h2>
         <p>Films, séries, livres, voyages, expériences… tout ce qui est à vivre.</p>
-        <div class="chill-actions"><button class="chill-btn primary" data-add-bucket>+ Ajouter</button></div>
+        <div class="chill-actions"><button class="chill-btn primary" data-open-chill-form="bucket">+ Ajouter</button></div>
+        ${state.form === 'bucket' ? renderBucketForm() : ''}
       </section>
       ${buckets.length ? `<div class="chill-grid">${buckets.map(item => renderCard(item, 'bucket')).join('')}</div>` : '<div class="chill-empty">Aucun élément actif dans la bucket list.</div>'}
     `;
@@ -195,7 +211,8 @@
       <section class="chill-panel">
         <h2>Progressions</h2>
         <p>Sagas, séries, animes, livres ou parcours suivis dans le temps.</p>
-        <div class="chill-actions"><button class="chill-btn primary" data-add-acc>+ Ajouter une progression</button></div>
+        <div class="chill-actions"><button class="chill-btn primary" data-open-chill-form="acc">+ Ajouter une progression</button></div>
+        ${state.form === 'acc' ? renderAccForm() : ''}
       </section>
       ${data.accs.length ? `<div class="chill-grid">${data.accs.map(renderAcc).join('')}</div>` : '<div class="chill-empty">Aucune progression enregistrée.</div>'}
     `;
@@ -255,20 +272,80 @@
     `;
   }
 
+  function renderWishForm() {
+    return renderItemForm('wish', 'Nouvelle envie', 'Nom de l’envie', true);
+  }
+
+  function renderBucketForm() {
+    return renderItemForm('bucket', 'Nouvel élément Bucket list', 'Nom de l’élément', false);
+  }
+
+  function renderWishListForm() {
+    return `
+      <form class="chill-form-grid" data-chill-form="wishlist">
+        <label class="chill-field"><span>Nom de la liste</span><input name="name" required placeholder="Ex. Noël, Anniversaire, Ma liste"></label>
+        <label class="chill-field"><span>Icône</span><input name="icon" value="🎁" maxlength="4"></label>
+        <div class="chill-form-actions">
+          <button class="chill-btn primary" type="submit">Enregistrer</button>
+          <button class="chill-btn" type="button" data-close-chill-form>Annuler</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function renderItemForm(type, title, placeholder, includePrice) {
+    return `
+      <form class="chill-form-grid" data-chill-form="${type}">
+        <h3>${title}</h3>
+        <label class="chill-field"><span>Titre</span><input name="name" required placeholder="${placeholder}"></label>
+        <label class="chill-field"><span>Catégorie</span><select name="cat">${categoryOptions()}</select></label>
+        <label class="chill-field"><span>Auteur / marque / précision</span><input name="auth" placeholder="Optionnel"></label>
+        ${includePrice ? '<label class="chill-field"><span>Prix indicatif</span><input name="pr" inputmode="decimal" placeholder="Optionnel"></label>' : ''}
+        <label class="chill-field"><span>Image URL</span><input name="img" placeholder="Optionnel"></label>
+        <label class="chill-field"><span>Note / description</span><textarea name="desc" placeholder="Optionnel"></textarea></label>
+        <div class="chill-form-actions">
+          <button class="chill-btn primary" type="submit">Enregistrer</button>
+          <button class="chill-btn" type="button" data-close-chill-form>Annuler</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function renderAccForm() {
+    return `
+      <form class="chill-form-grid" data-chill-form="acc">
+        <h3>Nouvelle progression</h3>
+        <label class="chill-field"><span>Titre</span><input name="name" required placeholder="Ex. Naruto Shippuden, One Piece, Série"></label>
+        <label class="chill-field"><span>Catégorie</span><select name="cat">${categoryOptions('série')}</select></label>
+        <label class="chill-field"><span>Total</span><input name="total" type="number" min="0" placeholder="Nombre total"></label>
+        <label class="chill-field"><span>Déjà réalisé</span><input name="current" type="number" min="0" value="0"></label>
+        <div class="chill-form-actions">
+          <button class="chill-btn primary" type="submit">Enregistrer</button>
+          <button class="chill-btn" type="button" data-close-chill-form>Annuler</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function categoryOptions(selected = 'autre') {
+    return CATS.map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
+  }
+
   function bind(host) {
     if (host.dataset.chillBound === 'true') return;
     host.dataset.chillBound = 'true';
+
     host.addEventListener('click', event => {
       const tab = event.target.closest('[data-chill-tab]')?.dataset.chillTab;
-      if (tab) { state.tab = tab; return rerender(host); }
+      if (tab) { state.tab = tab; state.form = null; return rerender(host); }
 
       const listId = event.target.closest('[data-set-list]')?.dataset.setList;
-      if (listId) { state.activeListId = listId; sSet('wlists_active', listId); return rerender(host); }
+      if (listId) { state.activeListId = listId; state.form = null; sSet('wlists_active', listId); return rerender(host); }
 
-      if (event.target.closest('[data-add-wishlist]')) return addWishList(host);
-      if (event.target.closest('[data-add-wish]')) return addWish(host);
-      if (event.target.closest('[data-add-bucket]')) return addBucket(host);
-      if (event.target.closest('[data-add-acc]')) return addAcc(host);
+      const formType = event.target.closest('[data-open-chill-form]')?.dataset.openChillForm;
+      if (formType) { state.form = state.form === formType ? null : formType; return rerender(host); }
+
+      if (event.target.closest('[data-close-chill-form]')) { state.form = null; return rerender(host); }
 
       const actions = [
         ['toggleWish', '[data-toggle-wish]', 'toggleWish'],
@@ -283,11 +360,59 @@
         if (el) return mutate(host, fn, el.dataset[fn]);
       }
     });
+
+    host.addEventListener('submit', event => {
+      const form = event.target.closest('[data-chill-form]');
+      if (!form) return;
+      event.preventDefault();
+      submitForm(host, form.dataset.chillForm, Object.fromEntries(new FormData(form).entries()));
+    });
   }
 
   function rerender(host) {
     const root = host.closest('#space-chill');
     render(root);
+  }
+
+  function submitForm(host, type, values) {
+    const data = readData();
+    if (type === 'wishlist') {
+      const list = { id: uid(), name: String(values.name || '').trim(), icon: String(values.icon || '🎁').trim() || '🎁', wishes: [] };
+      if (!list.name) return;
+      data.wishLists.push(list);
+      state.activeListId = list.id;
+    }
+
+    if (type === 'wish') {
+      const list = currentList(data);
+      if (!values.name) return;
+      list.wishes = arrayish(list.wishes);
+      list.wishes.unshift({
+        id: uid(), name: String(values.name).trim(), cat: values.cat || 'autre', auth: values.auth || '',
+        pr: values.pr || '', desc: values.desc || '', img: values.img || '', checked: false, createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (type === 'bucket') {
+      if (!values.name) return;
+      data.buckets.unshift({
+        id: uid(), name: String(values.name).trim(), cat: values.cat || 'expérience', auth: values.auth || '',
+        desc: values.desc || '', img: values.img || '', done: false, createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (type === 'acc') {
+      if (!values.name) return;
+      const current = Number(values.current || 0);
+      data.accs.unshift({
+        id: uid(), name: String(values.name).trim(), cat: values.cat || 'série', total: Number(values.total || 0),
+        current, cur: current, createdAt: new Date().toISOString(),
+      });
+    }
+
+    state.form = null;
+    writeData(data);
+    rerender(host);
   }
 
   function mutate(host, action, id) {
@@ -315,63 +440,9 @@
         item.cur = current;
       }
     }
+    state.form = null;
     writeData(data);
     rerender(host);
-  }
-
-  function addWishList(host) {
-    const data = readData();
-    const name = prompt('Nom de la nouvelle liste d’envies ?');
-    if (!name) return;
-    const icon = prompt('Icône de la liste ?', '🎁') || '🎁';
-    const list = { id: uid(), name: name.trim(), icon: icon.trim(), wishes: [] };
-    data.wishLists.push(list);
-    state.activeListId = list.id;
-    writeData(data);
-    rerender(host);
-  }
-
-  function addWish(host) {
-    const data = readData();
-    const list = currentList(data);
-    const name = prompt('Nom de l’envie ?');
-    if (!name) return;
-    const cat = chooseCategory('Catégorie de l’envie ?') || 'autre';
-    const auth = prompt('Auteur / marque / précision ?', '') || '';
-    const pr = prompt('Prix indicatif ?', '') || '';
-    const desc = prompt('Note / description ?', '') || '';
-    list.wishes = arrayish(list.wishes);
-    list.wishes.unshift({ id: uid(), name: name.trim(), cat, auth, pr, desc, checked: false, createdAt: new Date().toISOString() });
-    writeData(data);
-    rerender(host);
-  }
-
-  function addBucket(host) {
-    const data = readData();
-    const name = prompt('Nom de l’élément à vivre / voir / lire ?');
-    if (!name) return;
-    const cat = chooseCategory('Catégorie bucket list ?') || 'expérience';
-    const desc = prompt('Note / description ?', '') || '';
-    data.buckets.unshift({ id: uid(), name: name.trim(), cat, desc, done: false, createdAt: new Date().toISOString() });
-    writeData(data);
-    rerender(host);
-  }
-
-  function addAcc(host) {
-    const data = readData();
-    const name = prompt('Nom de la saga / série / progression ?');
-    if (!name) return;
-    const total = Number(prompt('Nombre total d’éléments / épisodes / chapitres ?', '10') || 0);
-    const current = Number(prompt('Déjà réalisés ?', '0') || 0);
-    const cat = chooseCategory('Catégorie de progression ?') || 'série';
-    data.accs.unshift({ id: uid(), name: name.trim(), cat, total, current, cur: current, createdAt: new Date().toISOString() });
-    writeData(data);
-    rerender(host);
-  }
-
-  function chooseCategory(label) {
-    const fallback = prompt(`${label}\n${CATS.map(c => c[0]).join(', ')}`, 'autre');
-    return fallback || '';
   }
 
   window.MomentumChill = { render };
