@@ -40,12 +40,12 @@
     film: 'TMDB · films',
     serie: 'TMDB · séries',
     livre: 'OpenLibrary · livres',
-    manga: 'Jikan · mangas',
-    anime: 'Jikan · anime',
+    manga: 'Jikan · manga, puis anime si besoin',
+    anime: 'Jikan · anime, puis manga si besoin',
     jeu: 'RAWG · jeux vidéo',
-    musique: 'MusicBrainz · musique',
-    vinyle: 'MusicBrainz · vinyles / albums',
-    concert: 'MusicBrainz · artistes / concerts',
+    musique: 'iTunes + MusicBrainz · albums',
+    vinyle: 'iTunes + MusicBrainz · vinyles / albums',
+    concert: 'MusicBrainz · musique',
     resto: 'Aucune API de pochette adaptée pour les restaurants',
     voyage: 'Aucune API de pochette adaptée pour les voyages',
     autre: 'Aucune API spécialisée pour cette catégorie',
@@ -56,8 +56,8 @@
     if (!shell) return;
     shell.innerHTML = `
       <article class="panel">
-        <h3>Chill natif</h3>
-        <p>La recherche de pochette est maintenant ciblée par catégorie : film, série, livre, manga, anime, jeu vidéo, musique ou vinyle.</p>
+        <h3>Chill</h3>
+        <p>Choisis une liste d’envies, une catégorie, puis lance une recherche ciblée. Quand l’API fournit un résumé, il peut remplir automatiquement les notes.</p>
         <div class="actions-row">
           <a class="secondary-btn" href="https://eps-kbapp.github.io/Momentum/" target="_blank" rel="noopener">Ouvrir Chill stable</a>
         </div>
@@ -84,42 +84,85 @@
     return renderProgress();
   }
 
-  function getWishData() {
-    const lists = S.get('wlists', null);
-    const activeId = S.get('wlists_active', null);
-    if (Array.isArray(lists)) {
-      const active = lists.find(list => list.id === activeId) || lists[0];
-      return { lists, active, items: normalizeArray(active?.items || active?.wishes || active?.data || []) };
-    }
-    if (lists && typeof lists === 'object') {
-      const values = Object.values(lists);
-      const active = lists[activeId] || values[0];
-      return { lists, active, items: normalizeArray(active?.items || active?.wishes || active?.data || active || []) };
-    }
-    const legacy = S.get('w', []);
-    return { lists: [], active: null, items: normalizeArray(legacy) };
-  }
-
-  function setWishItems(items) {
+  function ensureWishData() {
     const lists = S.get('wlists', null);
     const activeId = S.get('wlists_active', null);
     if (Array.isArray(lists) && lists.length) {
-      const next = lists.map((list, index) => ((activeId && list.id === activeId) || (!activeId && index === 0)) ? { ...list, items } : list);
-      S.set('wlists', next);
-      return;
+      const active = lists.find(list => String(list.id) === String(activeId)) || lists[0];
+      if (!activeId || String(active.id) !== String(activeId)) S.set('wlists_active', active.id);
+      return { lists: lists.map(normalizeList), active: normalizeList(active), items: normalizeArray(active?.items || []) };
     }
-    S.set('w', items);
+
+    const legacy = normalizeArray(S.get('w', []));
+    const initial = [{ id: 'default', name: 'Mes envies', items: legacy }];
+    S.set('wlists', initial);
+    S.set('wlists_active', 'default');
+    return { lists: initial, active: initial[0], items: legacy };
+  }
+
+  function normalizeList(list) {
+    return {
+      id: list?.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: list?.name || list?.title || 'Liste sans nom',
+      items: normalizeArray(list?.items || list?.wishes || list?.data || []),
+    };
+  }
+
+  function setWishItems(items) {
+    const data = ensureWishData();
+    const next = data.lists.map(list => String(list.id) === String(data.active.id) ? { ...list, items } : list);
+    S.set('wlists', next);
+    S.set('wlists_active', data.active.id);
+  }
+
+  function setActiveWishList(id) {
+    const data = ensureWishData();
+    const exists = data.lists.some(list => String(list.id) === String(id));
+    if (exists) S.set('wlists_active', id);
+  }
+
+  function addWishList(name) {
+    const label = String(name || '').trim();
+    if (!label) return;
+    const data = ensureWishData();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    S.set('wlists', [...data.lists, { id, name: label, items: [] }]);
+    S.set('wlists_active', id);
+  }
+
+  function deleteActiveWishList() {
+    const data = ensureWishData();
+    if (data.lists.length <= 1) return;
+    const next = data.lists.filter(list => String(list.id) !== String(data.active.id));
+    S.set('wlists', next);
+    S.set('wlists_active', next[0]?.id || 'default');
   }
 
   function renderWishes() {
-    const data = getWishData();
+    const data = ensureWishData();
     return `
       <article class="panel">
         <h3>Envies</h3>
-        <p>${data.active?.name || data.active?.title ? `Liste active : <strong>${e(data.active.name || data.active.title)}</strong>` : 'Ajoute les films, séries, livres, vinyles, jeux ou sorties que tu veux garder en tête.'}</p>
+        <p>Liste active : <strong>${e(data.active.name)}</strong></p>
+        ${renderWishLists(data)}
         ${itemForm('wish')}
       </article>
       ${itemList(data.items, 'wish')}
+    `;
+  }
+
+  function renderWishLists(data) {
+    return `
+      <div class="chill-people-panel">
+        <div class="chill-people-list" aria-label="Listes d’envies">
+          ${data.lists.map(list => `<button type="button" class="secondary-btn ${String(list.id) === String(data.active.id) ? 'active' : ''}" data-chill-list="${e(list.id)}">${e(list.name)}</button>`).join('')}
+        </div>
+        <form class="chill-list-form actions-row" data-chill-list-form>
+          <input name="name" placeholder="Nouvelle liste : moi, femme, filles…" />
+          <button class="secondary-btn" type="submit">Créer</button>
+          ${data.lists.length > 1 ? '<button class="secondary-btn" type="button" data-delete-active-list>Supprimer cette liste</button>' : ''}
+        </form>
+      </div>
     `;
   }
 
@@ -148,19 +191,20 @@
   }
 
   function renderProgress() {
-    const wishes = getWishData().items;
+    const wishes = ensureWishData();
     const bucket = normalizeArray(S.get('b', []));
     const obtained = normalizeArray(S.get('a', []));
+    const wishTotal = wishes.lists.reduce((total, list) => total + normalizeArray(list.items).length, 0);
     return `
       <article class="panel">
         <h3>Progressions</h3>
         <div class="metric-grid">
-          <article class="metric-card"><strong>${wishes.length}</strong><span>envie(s)</span></article>
+          <article class="metric-card"><strong>${wishes.lists.length}</strong><span>liste(s)</span></article>
+          <article class="metric-card"><strong>${wishTotal}</strong><span>envie(s)</span></article>
           <article class="metric-card"><strong>${bucket.length}</strong><span>bucket list</span></article>
           <article class="metric-card"><strong>${obtained.length}</strong><span>obtenu</span></article>
-          <article class="metric-card"><strong>${wishes.length + bucket.length + obtained.length}</strong><span>total Chill</span></article>
         </div>
-        <p>Les statistiques seront ensuite enrichies avec les progressions du Chill stable.</p>
+        <p>Les envies peuvent maintenant être séparées par personne ou par usage : toi, ta femme, tes filles, cadeaux, vacances, etc.</p>
       </article>
     `;
   }
@@ -168,11 +212,11 @@
   function itemForm(kind) {
     return `
       <form class="goal-form chill-add-form" data-chill-form="${kind}">
-        <label class="field"><span>Titre</span><input name="title" required placeholder="Ex. Dune 2, Zelda, Daft Punk Discovery…" /></label>
+        <label class="field"><span>Titre</span><input name="title" required placeholder="Ex. Death Note, Zelda, Fauve Nuits Fauves…" /></label>
         <label class="field"><span>Type</span><select name="type" data-chill-type>
           ${Object.entries(typeLabels).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
         </select></label>
-        <p class="goal-desc" data-chill-api-hint>API utilisée : TMDB · films</p>
+        <p class="goal-desc" data-chill-api-label>API utilisée : ${apiLabels.film}</p>
         <details class="chill-manual-url">
           <summary>URL manuelle de pochette</summary>
           <label class="field"><span>Image / pochette URL</span><input name="image" data-chill-image-input placeholder="Optionnel" /></label>
@@ -183,7 +227,7 @@
         </div>
         <div class="chill-cover-status" data-chill-cover-status hidden></div>
         <div class="chill-cover-picker" data-chill-cover-picker hidden></div>
-        <label class="field"><span>Notes</span><textarea name="notes" placeholder="Pourquoi ça te tente ? Avec qui ? Où ?"></textarea></label>
+        <label class="field"><span>Notes</span><textarea name="notes" data-chill-notes placeholder="Résumé disponible automatiquement selon l’API, ou note personnelle."></textarea></label>
         <button class="primary-btn" type="submit">Ajouter</button>
       </form>
     `;
@@ -223,16 +267,21 @@
     root.dataset.chillRouterBound = 'true';
 
     root.addEventListener('change', event => {
-      const select = event.target.closest('[data-chill-type]');
-      if (!select) return;
-      updateApiHint(select.closest('[data-chill-form]'));
-      clearCoverChoice(select.closest('[data-chill-form]'), true);
+      const typeSelect = event.target.closest('[data-chill-type]');
+      if (!typeSelect) return;
+      const form = typeSelect.closest('[data-chill-form]');
+      const label = form?.querySelector('[data-chill-api-label]');
+      if (label) label.textContent = `API utilisée : ${apiLabels[typeSelect.value] || apiLabels.autre}`;
+      clearCoverChoice(form);
+      renderCoverChoices(form, []);
     });
 
     root.addEventListener('click', async event => {
       const tab = event.target.closest('[data-chill-tab]')?.dataset.chillTab;
+      const listBtn = event.target.closest('[data-chill-list]');
+      const deleteListBtn = event.target.closest('[data-delete-active-list]');
       const coverBtn = event.target.closest('[data-chill-cover-search]');
-      const coverChoice = event.target.closest('[data-chill-cover-choice]');
+      const coverChoice = event.target.closest('[data-chill-cover-index]');
       const deleteBtn = event.target.closest('[data-chill-delete]');
       const obtainBtn = event.target.closest('[data-chill-obtain]');
 
@@ -241,9 +290,19 @@
         rerender();
         return;
       }
+      if (listBtn) {
+        setActiveWishList(listBtn.dataset.chillList);
+        rerender();
+        return;
+      }
+      if (deleteListBtn) {
+        deleteActiveWishList();
+        rerender();
+        return;
+      }
       if (coverChoice) {
         event.preventDefault();
-        selectCoverChoice(coverChoice.closest('[data-chill-form]'), Number(coverChoice.dataset.index));
+        selectCoverChoice(coverChoice.closest('[data-chill-form]'), Number(coverChoice.dataset.chillCoverIndex));
         return;
       }
       if (coverBtn) {
@@ -272,6 +331,16 @@
     });
 
     root.addEventListener('submit', async event => {
+      const listForm = event.target.closest('[data-chill-list-form]');
+      if (listForm) {
+        event.preventDefault();
+        const data = Object.fromEntries(new FormData(listForm).entries());
+        addWishList(data.name);
+        listForm.reset();
+        rerender();
+        return;
+      }
+
       const form = event.target.closest('[data-chill-form]');
       if (!form) return;
       event.preventDefault();
@@ -280,14 +349,15 @@
       const submit = form.querySelector('[type="submit"]');
       try {
         setBusy(submit, true, 'Ajout…');
-        let cover = null;
-        if (data.image) cover = { image: data.image, coverSource: data.coverSource || 'URL manuelle' };
+        let cover = data.image ? { image: data.image, coverSource: data.coverSource || 'URL manuelle', description: '' } : null;
         if (!cover) {
-          setFormStatus(form, `Recherche ciblée : ${apiLabels[data.type] || 'API spécialisée'}…`);
+          setFormStatus(form, 'Recherche ciblée en cours…');
           const covers = await findCovers(data.title, data.type);
           renderCoverChoices(form, covers);
           cover = covers[0] || null;
+          if (cover) selectCoverChoice(form, 0, false);
         }
+        const notes = data.notes || cover?.description || '';
         const item = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           title: data.title,
@@ -296,13 +366,11 @@
           poster: cover?.image || '',
           cover: cover?.image || '',
           coverSource: cover?.coverSource || 'Aucune pochette trouvée automatiquement',
-          notes: data.notes || '',
+          notes,
           createdAt: today(),
         };
         mutateKind(kind, items => [item, ...items]);
         form.reset();
-        clearCoverChoice(form, true);
-        updateApiHint(form);
         rerender();
       } catch (error) {
         console.error('Chill add failed', error);
@@ -322,19 +390,19 @@
     }
     try {
       setBusy(button, true, 'Recherche…');
-      clearCoverChoice(form, true);
-      setFormStatus(form, `Recherche ciblée : ${apiLabels[data.type] || 'API spécialisée'}…`);
+      setFormStatus(form, 'Recherche ciblée en cours…');
       const covers = await findCovers(data.title, data.type);
       renderCoverChoices(form, covers);
       if (covers.length) {
         selectCoverChoice(form, 0);
-        setFormStatus(form, `${covers.length} résultat(s) via ${apiLabels[data.type] || 'API spécialisée'}. Choisis la pochette à garder.`);
+        setFormStatus(form, `${covers.length} résultat(s) via ${apiLabels[data.type] || 'API ciblée'}. Choisis la pochette à garder.`);
       } else {
-        setFormStatus(form, `Aucune pochette trouvée via ${apiLabels[data.type] || 'cette catégorie'}. Tu peux coller une URL manuelle.`, true);
+        clearCoverChoice(form);
+        setFormStatus(form, 'Aucun résultat dans l’API ciblée. Essaie un titre plus précis ou colle une URL manuelle.', true);
       }
     } catch (error) {
       console.error('Cover lookup failed', error);
-      clearCoverChoice(form, true);
+      clearCoverChoice(form);
       setFormStatus(form, 'La recherche ciblée a échoué. Tu peux coller une URL manuelle.', true);
     } finally {
       setBusy(button, false, 'Rechercher des pochettes');
@@ -344,95 +412,125 @@
   async function findCovers(title, type) {
     const query = String(title || '').trim();
     if (!query) return [];
-    const searcher = categorySearcher(type);
-    if (!searcher) return [];
-    const items = await searcher(query, type);
-    return uniqueCovers(Array.isArray(items) ? items : (items ? [items] : [])).slice(0, 6);
+    const sources = coverSources(type);
+    const results = [];
+    for (const source of sources) {
+      try {
+        const items = await source(query, type);
+        const normalized = Array.isArray(items) ? items : (items ? [items] : []);
+        normalized.forEach(item => {
+          if (!item?.image) return;
+          if (results.some(existing => existing.image === item.image)) return;
+          results.push(item);
+        });
+        if (results.length >= 6) break;
+      } catch (error) {
+        console.warn('Chill cover lookup failed', source.name, error);
+      }
+    }
+    return results.slice(0, 6);
   }
 
-  function categorySearcher(type) {
-    if (type === 'film') return searchTmdbMovie;
-    if (type === 'serie') return searchTmdbTv;
-    if (type === 'livre') return searchOpenLibrary;
-    if (type === 'manga') return query => searchJikan(query, 'manga');
-    if (type === 'anime') return query => searchJikan(query, 'anime');
-    if (type === 'jeu') return searchRawg;
-    if (type === 'musique' || type === 'vinyle' || type === 'concert') return searchMusicBrainz;
-    return null;
-  }
-
-  function uniqueCovers(items) {
-    const seen = new Set();
-    return items.filter(item => {
-      if (!item?.image || seen.has(item.image)) return false;
-      seen.add(item.image);
-      return true;
-    });
+  function coverSources(type) {
+    if (type === 'film') return [searchTmdbMovie];
+    if (type === 'serie') return [searchTmdbTv];
+    if (type === 'livre') return [searchOpenLibrary];
+    if (type === 'manga') return [searchJikanManga, searchJikanAnime];
+    if (type === 'anime') return [searchJikanAnime, searchJikanManga];
+    if (type === 'jeu') return [searchRawg];
+    if (type === 'musique' || type === 'vinyle') return [searchItunesAlbums, searchMusicBrainz];
+    if (type === 'concert') return [searchMusicBrainz];
+    return [];
   }
 
   async function searchOpenLibrary(query) {
-    const data = await fetchJson(`https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&limit=8`);
-    return (data?.docs || []).filter(doc => doc?.cover_i).map(doc => ({
+    const data = await fetchJson(`https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&limit=6`);
+    return (data?.docs || []).filter(doc => doc?.cover_i).slice(0, 6).map(doc => ({
       image: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
       coverSource: 'OpenLibrary',
-      label: doc.title || 'Livre',
+      description: [doc.author_name?.[0], doc.first_publish_year ? `Première publication : ${doc.first_publish_year}` : ''].filter(Boolean).join(' · '),
     }));
   }
 
-  async function searchJikan(query, endpoint) {
-    const data = await fetchJson(`https://api.jikan.moe/v4/${endpoint}?q=${encodeURIComponent(query)}&limit=8`);
+  async function searchJikanAnime(query) {
+    return searchJikan(query, 'anime', 'Jikan · anime');
+  }
+
+  async function searchJikanManga(query) {
+    return searchJikan(query, 'manga', 'Jikan · manga');
+  }
+
+  async function searchJikan(query, endpoint, sourceLabel) {
+    const data = await fetchJson(`https://api.jikan.moe/v4/${endpoint}?q=${encodeURIComponent(query)}&sfw=true&limit=6`);
     return (data?.data || []).map(item => {
       const image = item?.images?.jpg?.image_url || item?.images?.webp?.image_url || item?.images?.jpg?.large_image_url;
-      return image ? { image, coverSource: endpoint === 'manga' ? 'Jikan · manga' : 'Jikan · anime', label: item.title || endpoint } : null;
-    }).filter(Boolean);
+      const title = item?.title_french || item?.title || item?.title_english || '';
+      const synopsis = cleanText(item?.synopsis || '');
+      return image ? { image, coverSource: `${sourceLabel}${title ? ` · ${title}` : ''}`, description: synopsis } : null;
+    }).filter(Boolean).slice(0, 6);
   }
 
   async function searchTmdbMovie(query) {
     const data = await fetchJson(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&include_adult=false`);
-    return (data?.results || []).filter(result => result.poster_path).map(result => ({
+    return (data?.results || []).filter(result => result.poster_path).slice(0, 6).map(result => ({
       image: `https://image.tmdb.org/t/p/w342${result.poster_path}`,
-      coverSource: 'TMDB · film',
-      label: result.title || result.original_title || 'Film',
+      coverSource: `TMDB · ${result.title || result.original_title || 'Film'}`,
+      description: cleanText(result.overview || ''),
     }));
   }
 
   async function searchTmdbTv(query) {
     const data = await fetchJson(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&include_adult=false`);
-    return (data?.results || []).filter(result => result.poster_path).map(result => ({
+    return (data?.results || []).filter(result => result.poster_path).slice(0, 6).map(result => ({
       image: `https://image.tmdb.org/t/p/w342${result.poster_path}`,
-      coverSource: 'TMDB · série',
-      label: result.name || result.original_name || 'Série',
+      coverSource: `TMDB · ${result.name || result.original_name || 'Série'}`,
+      description: cleanText(result.overview || ''),
     }));
   }
 
   async function searchRawg(query) {
     const key = RAWG_KEY ? `&key=${RAWG_KEY}` : '';
-    const data = await fetchJson(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=8${key}`);
-    return (data?.results || []).filter(item => item.background_image).map(item => ({
+    const data = await fetchJson(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=6${key}`);
+    return (data?.results || []).filter(item => item.background_image).slice(0, 6).map(item => ({
       image: item.background_image,
-      coverSource: 'RAWG · jeu vidéo',
-      label: item.name || 'Jeu vidéo',
+      coverSource: `RAWG · ${item.name || 'Jeu vidéo'}`,
+      description: [item.released ? `Sortie : ${item.released}` : '', item.rating ? `Note RAWG : ${item.rating}/5` : ''].filter(Boolean).join(' · '),
+    }));
+  }
+
+  async function searchItunesAlbums(query) {
+    const data = await fetchJson(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=FR&media=music&entity=album&limit=6`);
+    return (data?.results || []).filter(item => item.artworkUrl100).slice(0, 6).map(item => ({
+      image: String(item.artworkUrl100).replace('100x100bb', '600x600bb'),
+      coverSource: `iTunes · ${item.artistName || ''}${item.collectionName ? ` · ${item.collectionName}` : ''}`,
+      description: [item.artistName, item.collectionName, item.releaseDate ? `Sortie : ${String(item.releaseDate).slice(0, 10)}` : ''].filter(Boolean).join(' · '),
     }));
   }
 
   async function searchMusicBrainz(query) {
-    const data = await fetchJson(`https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=12`);
+    const data = await fetchJson(`https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=10`);
     const releases = data?.releases || [];
     const covers = [];
     for (const release of releases) {
       if (!release?.id) continue;
-      const cover = await searchCoverArtArchive(release.id, release.title);
-      if (cover?.image) covers.push(cover);
+      const cover = await searchCoverArtArchive(release.id, release);
+      if (cover?.image && !covers.some(item => item.image === cover.image)) covers.push(cover);
       if (covers.length >= 6) break;
     }
     return covers;
   }
 
-  async function searchCoverArtArchive(releaseId, title) {
+  async function searchCoverArtArchive(releaseId, release = {}) {
     try {
       const data = await fetchJson(`https://coverartarchive.org/release/${releaseId}`);
-      const image = data?.images?.find(item => item.front)?.thumbnails?.small || data?.images?.[0]?.thumbnails?.small || data?.images?.[0]?.image;
-      return image ? { image, coverSource: 'MusicBrainz · Cover Art Archive', label: title || 'Album' } : null;
+      const image = data?.images?.find(item => item.front)?.thumbnails?.large || data?.images?.find(item => item.front)?.thumbnails?.small || data?.images?.[0]?.thumbnails?.large || data?.images?.[0]?.thumbnails?.small || data?.images?.[0]?.image;
+      const artist = release['artist-credit']?.map(entry => entry?.name).filter(Boolean).join(', ');
+      const title = release.title || '';
+      return image ? {
+        image,
+        coverSource: `MusicBrainz · ${[artist, title].filter(Boolean).join(' · ') || 'album'}`,
+        description: [artist, title, release.date ? `Sortie : ${release.date}` : ''].filter(Boolean).join(' · '),
+      } : null;
     } catch (error) {
       return null;
     }
@@ -441,7 +539,7 @@
   function renderCoverChoices(form, covers) {
     const picker = form?.querySelector('[data-chill-cover-picker]');
     if (!picker) return;
-    form._chillCovers = covers || [];
+    form.__coverResults = covers;
     if (!covers.length) {
       picker.hidden = true;
       picker.innerHTML = '';
@@ -452,7 +550,7 @@
       <p>Choisis une pochette :</p>
       <div class="chill-cover-options">
         ${covers.map((cover, index) => `
-          <button type="button" class="chill-cover-choice ${index === 0 ? 'active' : ''}" data-index="${index}" aria-label="Choisir ${e(cover.label || 'pochette')}">
+          <button type="button" class="chill-cover-choice ${index === 0 ? 'active' : ''}" data-chill-cover-index="${index}" aria-label="Choisir la pochette ${index + 1}">
             <img src="${e(cover.image)}" alt="" loading="lazy">
           </button>
         `).join('')}
@@ -460,38 +558,29 @@
     `;
   }
 
-  function selectCoverChoice(form, index) {
-    const cover = form?._chillCovers?.[index];
+  function selectCoverChoice(form, index, fillNotes = true) {
+    const cover = form?.__coverResults?.[index];
     if (!cover) return;
     const imageInput = form.querySelector('[data-chill-image-input]');
     const sourceInput = form.querySelector('[data-chill-cover-source]');
+    const notesInput = form.querySelector('[data-chill-notes]');
     if (imageInput) imageInput.value = cover.image || '';
     if (sourceInput) sourceInput.value = cover.coverSource || 'Sélection';
-    form.querySelectorAll('[data-chill-cover-choice]').forEach(button => button.classList.toggle('active', Number(button.dataset.index) === index));
+    if (fillNotes && notesInput && !String(notesInput.value || '').trim() && cover.description) notesInput.value = cover.description;
+    form.querySelectorAll('[data-chill-cover-index]').forEach(button => button.classList.toggle('active', Number(button.dataset.chillCoverIndex) === index));
   }
 
-  function clearCoverChoice(form, clearInput = false) {
+  function clearCoverChoice(form) {
     if (!form) return;
-    form._chillCovers = [];
-    const picker = form.querySelector('[data-chill-cover-picker]');
-    const sourceInput = form.querySelector('[data-chill-cover-source]');
+    form.__coverResults = [];
     const imageInput = form.querySelector('[data-chill-image-input]');
-    if (picker) {
-      picker.hidden = true;
-      picker.innerHTML = '';
-    }
+    const sourceInput = form.querySelector('[data-chill-cover-source]');
+    if (imageInput) imageInput.value = '';
     if (sourceInput) sourceInput.value = '';
-    if (clearInput && imageInput) imageInput.value = '';
-  }
-
-  function updateApiHint(form) {
-    const select = form?.querySelector('[data-chill-type]');
-    const hint = form?.querySelector('[data-chill-api-hint]');
-    if (hint && select) hint.textContent = `API utilisée : ${apiLabels[select.value] || 'aucune API spécialisée'}`;
   }
 
   async function fetchJson(url) {
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     return response.json();
   }
@@ -515,14 +604,14 @@
   }
 
   function getItems(kind) {
-    if (kind === 'wish') return getWishData().items;
+    if (kind === 'wish') return ensureWishData().items;
     if (kind === 'bucket') return normalizeArray(S.get('b', []));
     return normalizeArray(S.get('a', []));
   }
 
   function mutateKind(kind, updater) {
     if (kind === 'wish') {
-      setWishItems(updater(getWishData().items));
+      setWishItems(updater(ensureWishData().items));
       return;
     }
     if (kind === 'bucket') {
@@ -541,6 +630,10 @@
   function normalizeItem(item) {
     if (!item || typeof item !== 'object') return { id: `${Date.now()}-${Math.random()}`, title: String(item || '') };
     return { id: item.id || item.uid || item.key || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...item };
+  }
+
+  function cleanText(value) {
+    return String(value || '').replace(/\s+/g, ' ').replace(/\[Written by MAL Rewrite\]/gi, '').trim();
   }
 
   function rerender() {
