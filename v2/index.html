@@ -6,24 +6,38 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Momentum v2</title>
-  <link rel="stylesheet" href="./styles.css?v=20260715-chill-covers1" />
+  <title>Momentum</title>
+  <link rel="stylesheet" href="./styles.css?v=20260715-chill-settings1" />
+  <link rel="stylesheet" href="./overrides.css?v=20260715-chill-settings1" />
 </head>
-<body>
-  <main class="shell" id="app" data-build="chill-covers1">
+<body data-bg-theme="dark">
+  <main class="shell" id="app" data-build="chill-settings1">
     <section class="screen active" id="home-screen" aria-labelledby="home-title">
       <header class="home-hero">
-        <p class="eyebrow">Momentum v2</p>
+        <div class="home-topbar">
+          <p class="eyebrow">Momentum</p>
+          <button class="settings-toggle" type="button" aria-label="Réglages du fond" data-settings-toggle>⚙</button>
+        </div>
         <h1 id="home-title">Que veux-tu piloter aujourd’hui&nbsp;?</h1>
         <p class="hero-text">Une même application, quatre ambiances clairement séparées : plaisir, énergie, créativité et concentration.</p>
       </header>
+
+      <article class="panel settings-panel" data-settings-panel hidden>
+        <h3>Réglage du fond</h3>
+        <p>Change uniquement l’ambiance générale du fond. Les espaces gardent leur identité Chill, Sport, Hobbies et Brain.</p>
+        <div class="theme-options" role="group" aria-label="Choix du fond">
+          <button type="button" data-bg-choice="dark">Noir</button>
+          <button type="button" data-bg-choice="light">Blanc</button>
+          <button type="button" data-bg-choice="ecru">Beige / écru</button>
+        </div>
+      </article>
 
       <div class="space-grid" aria-label="Espaces Momentum">
         <button class="space-card chill" data-open-space="chill">
           <span class="space-icon">☕</span>
           <span class="space-title">Chill</span>
           <span class="space-desc">Envies, bucket list, obtenu et progressions.</span>
-          <span class="space-meta">Chill natif · couvertures auto</span>
+          <span class="space-meta">Chill natif · pochettes auto</span>
         </button>
 
         <button class="space-card sport" data-open-space="sport">
@@ -49,10 +63,10 @@
       </div>
 
       <article class="panel home-tools" aria-labelledby="data-title">
-        <h3 id="data-title">Sauvegarde v2</h3>
+        <h3 id="data-title">Sauvegarde des espaces</h3>
         <p>Exporte ou réimporte les données locales de Sport, Hobbies et Brain. Chill lit les clés historiques <strong>lt6_*</strong> utilisées par l’application stable.</p>
         <div class="actions-row">
-          <button class="primary-btn" type="button" data-export-v2>Exporter la sauvegarde v2</button>
+          <button class="primary-btn" type="button" data-export-v2>Exporter la sauvegarde</button>
           <label class="secondary-btn" for="import-v2-file">Importer une sauvegarde</label>
           <input id="import-v2-file" data-import-v2 type="file" accept="application/json,.json" hidden>
         </div>
@@ -64,7 +78,7 @@
         <button class="back-btn" data-go-home>← Accueil</button>
         <p class="eyebrow">Espace</p>
         <h2 id="chill-title">Chill</h2>
-        <p>Un espace chaleureux pour les envies, films, livres, jeux, sorties, bucket list et choses obtenues.</p>
+        <p>Un espace chaleureux pour les envies, films, livres, vinyles, jeux, sorties, bucket list et choses obtenues.</p>
       </header>
       <div data-chill-native></div>
     </section>
@@ -127,11 +141,31 @@
     </section>
   </main>
 
-  <script src="./goals-core.js?v=20260715-chill-covers1"></script>
-  <script src="./chill.js?v=20260715-chill-covers1"></script>
-  <script src="./sport.js?v=20260715-chill-covers1"></script>
-  <script src="./hobbies.js?v=20260715-chill-covers1"></script>
-  <script src="./brain.js?v=20260715-chill-covers1"></script>
-  <script src="./app.js?v=20260715-chill-covers1"></script>
+  <script src="./goals-core.js?v=20260715-chill-settings1"></script>
+  <script src="./chill.js?v=20260715-chill-settings1"></script>
+  <script src="./sport.js?v=20260715-chill-settings1"></script>
+  <script src="./hobbies.js?v=20260715-chill-settings1"></script>
+  <script src="./brain.js?v=20260715-chill-settings1"></script>
+  <script src="./app.js?v=20260715-chill-settings1"></script>
+  <script>
+    (function () {
+      const key = 'momentum_bg_theme';
+      const toggle = document.querySelector('[data-settings-toggle]');
+      const panel = document.querySelector('[data-settings-panel]');
+      const buttons = Array.from(document.querySelectorAll('[data-bg-choice]'));
+      function apply(theme) {
+        const value = theme || 'dark';
+        document.body.dataset.bgTheme = value;
+        buttons.forEach(button => button.classList.toggle('active', button.dataset.bgChoice === value));
+        localStorage.setItem(key, value);
+      }
+      apply(localStorage.getItem(key) || 'dark');
+      toggle?.addEventListener('click', () => {
+        if (!panel) return;
+        panel.hidden = !panel.hidden;
+      });
+      buttons.forEach(button => button.addEventListener('click', () => apply(button.dataset.bgChoice)));
+    }());
+  </script>
 </body>
 </html>
