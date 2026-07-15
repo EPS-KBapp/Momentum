@@ -1,129 +1,172 @@
-# Momentum v2 — Plan technique
+# Momentum v2 — Plan technique de refonte
 
-## Décision produit
+## Objectif
 
-Momentum v2 remplace l'ancienne logique Ambition par une application organisée en quatre espaces :
+Construire une nouvelle version de Momentum autour de quatre espaces :
 
-1. **Chill** — module existant conservé intact.
-2. **Sport** — objectifs sportifs, programme hebdomadaire, séances, tests et profil.
-3. **Hobbies** — objectifs personnels, pratiques, lecture, expériences et moments.
-4. **Brain** — objectifs intellectuels, plan de travail, productions, agrégation interne EPS et projets professionnels.
+- Chill
+- Sport
+- Hobbies
+- Brain
 
-La partie Ambition doit disparaître entièrement à terme : timer, prairie/forêt, calendrier, objectifs Ambition, progression Ambition et navigation associée.
-
-## Règle de sécurité
-
-La refonte se fait sur la branche `refonte-momentum-v2`.
-
-`main` reste la version stable.
-
-Chill ne doit pas être modifié dans un premier temps. Toute intégration de Chill dans la nouvelle coque devra préserver :
-
-- les données `lt6_*`,
-- les fonctions existantes de Chill,
-- les quatre menus actuels,
-- les formulaires actuels,
-- le comportement actuel.
-
-## Direction artistique
-
-Momentum v2 doit garder une identité commune :
-
-- design mobile-first,
-- cartes arrondies,
-- interfaces calmes,
-- typographie lisible,
-- structure homogène entre espaces,
-- variations par couleur d'accent seulement.
-
-Accents recommandés :
-
-| Espace | Ambiance | Accent |
-|---|---|---|
-| Chill | chaleureux, envies, collections | doré / beige |
-| Sport | énergie, forme, progression | vert / bleu |
-| Hobbies | créativité, vie personnelle | terracotta / orange doux |
-| Brain | concentration, apprentissage | violet / bleu nuit |
-
-## Architecture cible
+La version stable actuelle reste sur `main`. La refonte est développée sur la branche :
 
 ```text
-index.html
-styles.css
-app.js
-chill.js
-goals-core.js
-sport.js
-hobbies.js
-brain.js
-sw.js
-manifest.json
+refonte-momentum-v2
 ```
 
-La première livraison de cette branche ajoute un prototype isolé dans `/v2/` pour valider la structure sans toucher au fichier `index.html` existant.
+## Règles de sécurité
 
-## Roadmap
+1. Ne pas modifier directement `main`.
+2. Ne pas casser Chill.
+3. Ne pas modifier le code interne de Chill dans un premier temps.
+4. Supprimer Ambition seulement après validation de la coque v2.
+5. Ne pas ajouter d’API externe.
+6. Garder les données Chill existantes isolées.
+7. Stocker les nouvelles données dans des clés `momentum_v2_*`.
 
-### Phase 1 — Coque Momentum v2
+## État actuel de la PR
 
-Objectifs :
+La PR contient un prototype isolé dans `/v2/`.
 
-- créer un accueil avec quatre cartes ;
-- ouvrir les espaces Chill, Sport, Hobbies, Brain ;
-- garder Chill intact ;
-- créer un premier moteur commun d'objectifs pour Sport/Hobbies/Brain.
+### Inclus
 
-Critères de validation :
+- Accueil Momentum v2 avec quatre espaces.
+- Direction artistique commune avec accents par espace.
+- Encapsulation de Chill via iframe same-origin vers l’app stable.
+- Ouverture automatique de Chill via `enterApp('chill')` sans modifier le code legacy.
+- Moteur commun pour Sport, Hobbies et Brain.
+- Objectifs court / moyen / long terme.
+- Actions planifiées.
+- Journaux de réalisation.
+- Collections métiers simples.
+- Premiers écrans fonctionnels pour Sport, Hobbies et Brain.
 
-- l'accueil s'affiche ;
-- les quatre espaces s'ouvrent ;
-- Sport, Hobbies et Brain partagent une logique d'objectifs ;
-- aucune modification n'est faite dans Chill.
+### Non inclus
 
-### Phase 2 — Intégration Chill sans modification fonctionnelle
+- Suppression effective d’Ambition dans `index.html`.
+- Migration du code Chill hors du fichier legacy.
+- Fusion dans `main`.
+- Connexions Garmin, Strava, Health Connect ou API externes.
 
-Objectifs :
+## Architecture actuelle
 
-- encapsuler le module Chill dans la nouvelle coque ;
-- conserver ses quatre menus ;
-- ajouter seulement un retour global vers l'accueil Momentum v2.
+```text
+v2/
+├── index.html
+├── styles.css
+├── app.js
+├── goals-core.js
+├── sport.js
+├── hobbies.js
+└── brain.js
+```
 
-### Phase 3 — Suppression propre d'Ambition
+## Données locales
 
-Objectifs :
+Chill conserve ses clés historiques.
 
-- retirer l'interface Ambition ;
-- supprimer les dépendances inutiles ;
-- conserver uniquement les helpers nécessaires à Chill.
+La v2 utilise :
 
-### Phase 4 — Sport v1
+```text
+momentum_v2_goals
+momentum_v2_actions
+momentum_v2_logs
+momentum_v2_collections
+```
 
-Objectifs :
+## Moteur commun
 
-- objectifs sportifs court/moyen/long terme ;
-- programme hebdomadaire ;
-- validation des séances ;
-- comparaison prévu/réalisé ;
-- profil sport ;
-- premiers tests : VAMEVAL, Cooper/demi-Cooper.
+Le fichier `goals-core.js` gère :
 
-### Phase 5 — Hobbies v1
+- objectifs ;
+- actions planifiées ;
+- réalisations ;
+- collections simples ;
+- résumés par espace ;
+- libellés communs ;
+- nettoyage objectif → actions/logs associés.
 
-Objectifs :
+## Espace Sport
+
+Fonctions v1 :
+
+- objectifs sportifs ;
+- programme / séances prévues ;
+- validation des séances réalisées ;
+- comparaison qualitative prévu / réalisé ;
+- profil sportif simple ;
+- tests simples : VAMEVAL/VMA directe, Cooper, demi-Cooper, RABIT, gainage ;
+- calculs simples pour VMA ou vitesse moyenne quand possible.
+
+## Espace Hobbies
+
+Fonctions v1 :
 
 - objectifs hobbies ;
-- pratiques suivies ;
-- lecture avec progression ;
-- expériences et moments.
+- pratiques planifiées ;
+- pratiques réalisées ;
+- livres avec progression en pages ;
+- expériences / moments avec statut idée, prévu, réalisé.
 
-### Phase 6 — Brain v1
+## Espace Brain
 
-Objectifs :
+Fonctions v1 :
 
 - objectifs intellectuels ;
 - plan de travail ;
+- validation du travail réalisé ;
 - productions ;
-- agrégation interne EPS ;
+- préparation agrégation interne EPS ;
 - projets professionnels.
 
-Note : il n'y a pas d'onglet Ressources dans Brain. Les références, lectures ou liens éventuels seront attachés aux tâches ou productions.
+Il n’y a pas d’onglet Ressources autonome. Les références peuvent être notées dans les tâches et productions.
+
+## Tests manuels à effectuer
+
+### Coque
+
+- ouvrir `/v2/index.html` ;
+- vérifier l’accueil 4 espaces ;
+- ouvrir puis quitter chaque espace ;
+- vérifier le responsive mobile.
+
+### Chill
+
+- ouvrir Chill depuis la v2 ;
+- vérifier que les quatre menus Chill fonctionnent ;
+- vérifier que les données existantes sont visibles ;
+- revenir à l’accueil v2.
+
+### Sport
+
+- créer un objectif ;
+- planifier une séance ;
+- valider une séance ;
+- renseigner le profil ;
+- ajouter un test.
+
+### Hobbies
+
+- créer un objectif ;
+- planifier une pratique ;
+- valider une pratique ;
+- ajouter un livre ;
+- ajouter une expérience.
+
+### Brain
+
+- créer un objectif ;
+- planifier une tâche ;
+- valider une tâche ;
+- ajouter une production.
+
+## Prochaine étape technique
+
+Avant suppression d’Ambition :
+
+1. Tester `/v2/index.html` sur mobile et desktop.
+2. Corriger les bugs v2.
+3. Vérifier Chill dans l’iframe.
+4. Ajouter éventuellement un lien de test depuis la version stable, sans remplacer l’accueil.
+5. Seulement ensuite : préparer la suppression propre d’Ambition dans une étape séparée.
