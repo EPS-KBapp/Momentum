@@ -49,9 +49,21 @@
     const host = qs('[data-chill-host]');
     if (!host) return;
 
+    const isOfficialPages = location.hostname === 'eps-kbapp.github.io';
+    const warning = qs('[data-chill-warning]');
+    const stableLink = qs('[data-open-stable-chill]');
+    if (warning) warning.hidden = isOfficialPages;
+    if (stableLink) stableLink.hidden = isOfficialPages;
+
     let frame = qs('iframe', host);
     if (!frame) {
-      host.innerHTML = '<div class="legacy-loading">Chargement de Chill…</div>';
+      let loading = qs('.legacy-loading', host);
+      if (!loading) {
+        loading = document.createElement('div');
+        loading.className = 'legacy-loading';
+        loading.textContent = 'Chargement de Chill…';
+        host.appendChild(loading);
+      }
       frame = document.createElement('iframe');
       frame.className = 'legacy-frame';
       frame.title = 'Chill — module existant';
