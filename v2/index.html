@@ -7,10 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Momentum v2</title>
-  <link rel="stylesheet" href="./styles.css?v=20260715-chill-iframe-stable1" />
+  <link rel="stylesheet" href="./styles.css?v=20260715-chill-iframe-stable2" />
 </head>
 <body>
-  <main class="shell" id="app">
+  <main class="shell" id="app" data-build="chill-iframe-stable2">
     <section class="screen active" id="home-screen" aria-labelledby="home-title">
       <header class="home-hero">
         <p class="eyebrow">Momentum v2</p>
@@ -23,7 +23,7 @@
           <span class="space-icon">☕</span>
           <span class="space-title">Chill</span>
           <span class="space-desc">Envies, bucket list, obtenu et progressions.</span>
-          <span class="space-meta">Stable complet intégré</span>
+          <span class="space-meta">Stable complet intégré en plein écran</span>
         </button>
 
         <button class="space-card sport" data-open-space="sport">
@@ -50,23 +50,23 @@
     </section>
 
     <section class="screen screen--embedded" id="space-chill" aria-labelledby="chill-title">
-      <h2 class="sr-only" id="chill-title">Chill</h2>
+      <h2 class="sr-only" id="chill-title">Chill stable intégré</h2>
       <div class="embedded-toolbar chill">
         <button class="back-btn embedded-back" data-go-home>← Accueil</button>
-        <span class="embedded-title">Chill stable</span>
+        <span class="embedded-title">Chill intégré</span>
         <a class="embedded-stable-link" href="https://eps-kbapp.github.io/Momentum/" target="_blank" rel="noopener">Plein écran</a>
       </div>
-      <div class="legacy-shell">
+      <div class="legacy-shell" aria-label="Chill stable complet intégré">
         <iframe
           class="legacy-frame ready"
-          title="Chill stable complet"
-          src="https://eps-kbapp.github.io/Momentum/"
+          title="Chill stable complet intégré"
+          src="https://eps-kbapp.github.io/Momentum/?from=v2-iframe-stable2"
           loading="eager"
           allow="clipboard-read; clipboard-write"
         ></iframe>
       </div>
       <div class="legacy-origin-warning">
-        Tu es dans le Chill stable complet intégré. Si le sélecteur s’affiche dans le cadre, choisis Chill à l’intérieur.
+        Chill stable complet est intégré ici. Si le sélecteur apparaît dans le cadre, choisis Chill à l’intérieur.
       </div>
     </section>
 
@@ -130,10 +130,10 @@
     </section>
   </main>
 
-  <script src="./goals-core.js?v=20260715-chill-iframe-stable1"></script>
-  <script src="./sport.js?v=20260715-chill-iframe-stable1"></script>
-  <script src="./hobbies.js?v=20260715-chill-iframe-stable1"></script>
-  <script src="./brain.js?v=20260715-chill-iframe-stable1"></script>
-  <script src="./app.js?v=20260715-chill-iframe-stable1"></script>
+  <script src="./goals-core.js?v=20260715-chill-iframe-stable2"></script>
+  <script src="./sport.js?v=20260715-chill-iframe-stable2"></script>
+  <script src="./hobbies.js?v=20260715-chill-iframe-stable2"></script>
+  <script src="./brain.js?v=20260715-chill-iframe-stable2"></script>
+  <script src="./app.js?v=20260715-chill-iframe-stable2"></script>
 </body>
 </html>
