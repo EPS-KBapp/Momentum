@@ -8,6 +8,9 @@
     brain: window.MomentumBrain,
   };
 
+  const spaces = ['chill', 'sport', 'hobbies', 'brain'];
+  let currentScreen = 'home';
+
   function qs(selector, root = document) {
     return root.querySelector(selector);
   }
@@ -20,16 +23,56 @@
     qsa('.screen').forEach(screen => screen.classList.remove('active'));
     const target = qs(id);
     if (target) target.classList.add('active');
+    currentScreen = id === '#home-screen' ? 'home' : id.replace('#space-', '');
+    document.body.dataset.currentSpace = currentScreen;
   }
 
-  function openSpace(space) {
+  function parseHashSpace(hash = window.location.hash) {
+    const value = String(hash || '').replace('#', '');
+    return spaces.includes(value) ? value : '';
+  }
+
+  function openSpace(space, options = {}) {
     showScreen(`#space-${space}`);
     renderSpace(space);
+    if (!options.skipHistory && parseHashSpace() !== space) {
+      history.pushState({ momentumSpace: space }, '', `#${space}`);
+    }
   }
 
-  function goHome() {
+  function goHome(options = {}) {
     renderSummaries();
     showScreen('#home-screen');
+    if (!options.skipHistory && window.location.hash) {
+      history.pushState({ momentumSpace: 'home' }, '', `${window.location.pathname}${window.location.search}`);
+    }
+  }
+
+  function goBackToHome() {
+    if (currentScreen !== 'home' && window.location.hash) {
+      history.back();
+      return;
+    }
+    goHome({ skipHistory: true });
+  }
+
+  function initNavigationHistory() {
+    const initialSpace = parseHashSpace();
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
+    if (initialSpace) {
+      history.replaceState({ momentumSpace: 'home' }, '', cleanUrl);
+      history.pushState({ momentumSpace: initialSpace }, '', `#${initialSpace}`);
+      openSpace(initialSpace, { skipHistory: true });
+    } else {
+      history.replaceState({ momentumSpace: 'home' }, '', cleanUrl);
+      goHome({ skipHistory: true });
+    }
+
+    window.addEventListener('popstate', () => {
+      const space = parseHashSpace();
+      if (space) openSpace(space, { skipHistory: true });
+      else goHome({ skipHistory: true });
+    });
   }
 
   function renderSpace(space) {
@@ -50,7 +93,7 @@
       button.addEventListener('click', () => openSpace(button.dataset.openSpace));
     });
     qsa('[data-go-home]').forEach(button => {
-      button.addEventListener('click', goHome);
+      button.addEventListener('click', goBackToHome);
     });
     qsa('.subnav').forEach(nav => {
       nav.addEventListener('click', event => {
@@ -333,4 +376,5 @@
 
   bindShell();
   renderSummaries();
+  initNavigationHistory();
 }());
