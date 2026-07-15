@@ -35,7 +35,7 @@
     panel.innerHTML = `
       <article class="panel">
         <h3>Parcours Sport</h3>
-        <p>L’espace Sport fonctionne en 3 gestes : <strong>Objectifs</strong> pour savoir où tu vas, <strong>Planning</strong> pour prévoir puis ouvrir une séance et compléter le réalisé, <strong>Bilan & tests</strong> pour suivre ton profil et tes progrès.</p>
+        <p>L’espace Sport fonctionne en 3 gestes : <strong>Objectifs</strong> pour savoir où tu vas, <strong>Planning</strong> pour prévoir puis ouvrir une séance et compléter le réalisé, <strong>Bilan & tests</strong> pour lire ton niveau actuel.</p>
       </article>
       <div class="metric-grid">
         <article class="metric-card"><strong>${activeGoals.length}</strong><span>objectif(s) actif(s)</span></article>
@@ -43,16 +43,7 @@
         <article class="metric-card"><strong>${validated.length}</strong><span>séance(s) renseignée(s)</span></article>
         <article class="metric-card"><strong>${tests.length}</strong><span>test(s) enregistré(s)</span></article>
       </div>
-      <article class="panel">
-        <h3>Niveau actuel</h3>
-        <div class="metric-grid">
-          <article class="metric-card"><strong>${e(analysis.level)}</strong><span>niveau global</span></article>
-          <article class="metric-card"><strong>${analysis.vmaLabel}</strong><span>VMA estimée</span></article>
-          <article class="metric-card"><strong>${analysis.regularityLabel}</strong><span>régularité</span></article>
-          <article class="metric-card"><strong>${analysis.fatigueLabel}</strong><span>fatigue</span></article>
-        </div>
-        <p>${e(analysis.summary)}</p>
-      </article>
+      ${renderAnalysisSummary(analysis)}
       <article class="panel">
         <h3>Prochaine séance</h3>
         ${planned[0] ? renderActionMini(planned[0]) : '<p>Aucune séance prévue. Ajoute une séance dans <strong>Planning</strong>.</p>'}
@@ -81,10 +72,11 @@
     const panel = root.querySelector('[data-panel="program"]');
     const actions = MomentumGoals.listActions('sport');
     if (state.openSessionId && !actions.some(action => action.id === state.openSessionId)) state.openSessionId = null;
+
     panel.innerHTML = `
       <article class="panel">
         <h3>Planning unique</h3>
-        <p>Tu programmes une séance, puis tu l’ouvres directement ici pour compléter le résultat obtenu. Il n’y a plus d’onglet séparé pour réaliser la séance.</p>
+        <p>Tu programmes une séance, puis tu l’ouvres directement ici pour compléter le résultat obtenu. La même carte sert à corriger le statut ensuite.</p>
       </article>
       ${actionForm('sport', categories, {
         title: 'Prévoir une séance',
@@ -94,7 +86,7 @@
       })}
       <article class="panel">
         <h3>Séances programmées</h3>
-        <p>Utilise <strong>Ouvrir / compléter</strong> pour renseigner le réalisé, modifier un statut ou remettre une séance en prévu.</p>
+        <p>Ouvre une séance pour renseigner le réalisé, modifier un statut ou la remettre en prévu.</p>
       </article>
       ${renderSessionList(actions)}
     `;
@@ -104,11 +96,13 @@
   function renderProfile(root) {
     const panel = root.querySelector('[data-panel="profile"]');
     const profile = MomentumGoals.listItems('sport_profile')[0] || {};
+    const analysis = computeSportAnalysis();
+
     panel.innerHTML = `
-      ${renderSportAnalysis()}
+      ${renderFullAnalysis(analysis)}
       <article class="panel">
         <h3>Profil sportif</h3>
-        <p>Ces informations servent à personnaliser l’interprétation. Elles ne sont pas obligatoires, mais la VMA, la fréquence visée et les notes de fatigue rendent le bilan plus pertinent.</p>
+        <p>Ces informations rendent l’analyse plus précise. Tu peux commencer seulement avec la VMA ou un test.</p>
         <form class="goal-form" data-sport-profile>
           <label class="field"><span>Sports pratiqués</span><input name="sports" value="${e(profile.sports)}" placeholder="Course, renforcement, vélo…" /></label>
           <label class="field"><span>Fréquence visée</span><input name="frequency" value="${e(profile.frequency)}" placeholder="Ex. 3 séances / semaine" /></label>
@@ -121,7 +115,7 @@
       </article>
       <article class="panel">
         <h3>Ajouter un test</h3>
-        <p>Après enregistrement, le test est automatiquement interprété et intégré au niveau actuel.</p>
+        <p>Tu peux écrire naturellement : <em>14,5 km/h</em>, <em>palier 14</em>, <em>2800 m</em>, <em>distance 2800</em>. L’app extrait le nombre utile.</p>
         <form class="goal-form" data-sport-test>
           <label class="field"><span>Type</span><select name="type"><option value="vameval">VAMEVAL / VMA directe</option><option value="cooper">Cooper 12 min</option><option value="demi-cooper">Demi-Cooper 6 min</option><option value="rabit">RABIT</option><option value="gainage">Gainage</option></select></label>
           <label class="field"><span>Date</span><input name="date" type="date" value="${MomentumGoals.today()}" /></label>
@@ -130,21 +124,38 @@
           <button class="primary-btn" type="submit">Analyser / enregistrer</button>
         </form>
       </article>
-      ${renderTests()}
+      <article class="panel">
+        <h3>Historique des tests</h3>
+        ${renderTests()}
+      </article>
     `;
     bindProfile(panel);
   }
 
-  function renderSportAnalysis() {
-    const analysis = computeSportAnalysis();
+  function renderAnalysisSummary(analysis) {
     return `
       <article class="panel">
-        <h3>Bilan automatique</h3>
-        <p>Ce bilan se met à jour après chaque profil sauvegardé, test ajouté ou séance validée. Il donne une lecture pratique de ton niveau, pas un diagnostic médical.</p>
+        <h3>Niveau actuel</h3>
         <div class="metric-grid">
           <article class="metric-card"><strong>${e(analysis.level)}</strong><span>niveau global</span></article>
           <article class="metric-card"><strong>${analysis.vmaLabel}</strong><span>VMA estimée</span></article>
-          <article class="metric-card"><strong>${analysis.recentCharge}</strong><span>charge 14 jours</span></article>
+          <article class="metric-card"><strong>${analysis.regularityLabel}</strong><span>régularité</span></article>
+          <article class="metric-card"><strong>${analysis.fatigueLabel}</strong><span>fatigue</span></article>
+        </div>
+        <p>${e(analysis.summary)}</p>
+      </article>
+    `;
+  }
+
+  function renderFullAnalysis(analysis) {
+    return `
+      <article class="panel">
+        <h3>Bilan automatique</h3>
+        <p>Le bilan se met à jour après chaque profil sauvegardé, test ajouté ou séance validée. Il donne une lecture pratique de ton niveau, pas un diagnostic médical.</p>
+        <div class="metric-grid">
+          <article class="metric-card"><strong>${e(analysis.level)}</strong><span>niveau global</span></article>
+          <article class="metric-card"><strong>${analysis.vmaLabel}</strong><span>VMA estimée</span></article>
+          <article class="metric-card"><strong>${analysis.recentChargeLabel}</strong><span>charge 14 jours</span></article>
           <article class="metric-card"><strong>${analysis.avgFeelingLabel}</strong><span>ressenti moyen</span></article>
         </div>
       </article>
@@ -156,14 +167,15 @@
         <p><strong>Conseil :</strong> ${e(analysis.recommendation)}</p>
       </article>
       <article class="panel">
-        <h3>Détails du calcul</h3>
+        <h3>Ce qui manque pour affiner</h3>
+        <p>${e(analysis.missing)}</p>
         <div class="goal-meta">
           <span>${e(analysis.vmaSource)}</span>
           <span>${analysis.completedCount} séance(s) renseignée(s)</span>
           <span>${analysis.plannedCount} séance(s) prévue(s)</span>
           <span>${analysis.testCount} test(s)</span>
         </div>
-        <p>La charge est estimée avec la formule simple <strong>durée réelle × ressenti</strong>. Exemple : 40 min avec ressenti 7 = charge 280.</p>
+        <p>Charge estimée = <strong>durée réelle × ressenti</strong>. Exemple : 40 min avec ressenti 7 = charge 280.</p>
       </article>
     `;
   }
@@ -199,7 +211,7 @@
       vmaSource: vmaInfo.source,
       regularityLabel: regularityLevel.label,
       fatigueLabel: fatigueLevel.label,
-      recentCharge: charge ? String(Math.round(charge)) : '—',
+      recentChargeLabel: charge ? String(Math.round(charge)) : '—',
       avgFeelingLabel: avgFeeling ? `${formatNumber(avgFeeling)}/10` : '—',
       completedCount: completed.length,
       plannedCount: planned.length,
@@ -208,11 +220,12 @@
       strength: buildStrength(vmaLevel, regularityLevel, fatigueLevel, completed.length),
       watch: buildWatch(vmaLevel, regularityLevel, fatigueLevel, skipped.length, hasPain),
       recommendation: buildRecommendation(level, vmaLevel, regularityLevel, fatigueLevel, completed.length),
+      missing: buildMissing(vmaInfo.value, logs.length, tests.length, avgFeeling),
     };
   }
 
   function getBestVma(profile, tests) {
-    const profileVma = Number(String(profile.vma || '').replace(',', '.'));
+    const profileVma = extractNumber(profile.vma);
     if (profileVma) return { value: profileVma, source: 'VMA issue du profil sportif' };
 
     const sorted = [...tests].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
@@ -262,12 +275,11 @@
 
   function buildStrength(vmaLevel, regularityLevel, fatigueLevel, completedCount) {
     if (!completedCount && vmaLevel.score <= 1) return 'les premières données commencent à construire ton profil.';
-    const options = [
+    return [
       { score: vmaLevel.score, text: `aérobie : ${vmaLevel.text}` },
       { score: regularityLevel.score, text: `régularité : ${regularityLevel.text}` },
       { score: fatigueLevel.score, text: `tolérance : ${fatigueLevel.text}` },
-    ].sort((a, b) => b.score - a.score);
-    return options[0].text;
+    ].sort((a, b) => b.score - a.score)[0].text;
   }
 
   function buildWatch(vmaLevel, regularityLevel, fatigueLevel, skippedCount, hasPain) {
@@ -286,6 +298,15 @@
     if (vmaLevel.score <= 2) return 'priorité à l’endurance fondamentale et à la régularité avant d’augmenter l’intensité.';
     if (level === 'Avancé') return 'tu peux structurer une séance qualitative, mais garde une séance facile entre deux efforts durs.';
     return 'maintiens la régularité et ajoute progressivement une séance plus qualitative si la fatigue reste maîtrisée.';
+  }
+
+  function buildMissing(vma, logCount, testCount, avgFeeling) {
+    const missing = [];
+    if (!vma) missing.push('une VMA ou un test VMA');
+    if (!logCount) missing.push('au moins une séance validée');
+    if (!avgFeeling) missing.push('un ressenti de séance');
+    if (!testCount) missing.push('un test de référence');
+    return missing.length ? `Pour affiner le bilan, il manque : ${missing.join(', ')}.` : 'Les données de base sont suffisantes pour produire une première lecture utile.';
   }
 
   function renderSessionList(actions) {
@@ -340,7 +361,7 @@
           <button class="primary-btn" type="submit">Valider la séance</button>
           <button class="secondary-btn" type="button" data-close-session>Annuler</button>
         </div>
-        <p class="goal-desc">Pour valider en réalisé ou partiel, renseigne au minimum la durée réelle et le résultat obtenu. Pour non fait, indique simplement la raison dans le résultat obtenu.</p>
+        <p class="goal-desc">Pour valider en réalisé ou partiel, renseigne au minimum la durée réelle et le résultat obtenu. Pour non fait, indique simplement la raison.</p>
       </form>
     `;
   }
@@ -491,32 +512,34 @@
   }
 
   function analyzeTest(type, raw) {
-    const value = parseFloat(String(raw).replace(',', '.'));
+    const value = extractNumber(raw);
     let calculated = '';
-    let interpretation = 'Résultat enregistré. Analyse à affiner selon ton profil et le protocole exact.';
+    let interpretation = 'Résultat enregistré. Ajoute quelques séances validées pour mieux interpréter ce test.';
     let vmaEstimate = '';
 
-    if (!Number.isNaN(value)) {
+    if (value) {
       if (type === 'demi-cooper') {
         vmaEstimate = value / 100;
-        calculated = `${vmaEstimate.toFixed(1)} km/h de VMA estimée`;
+        calculated = `${formatNumber(vmaEstimate)} km/h de VMA estimée`;
       }
       if (type === 'cooper') {
         vmaEstimate = value / 200;
-        calculated = `${vmaEstimate.toFixed(1)} km/h de vitesse moyenne sur 12 min`;
+        calculated = `${formatNumber(vmaEstimate)} km/h de vitesse moyenne sur 12 min`;
       }
       if (type === 'vameval') {
         vmaEstimate = value;
-        calculated = `${value.toFixed(1)} km/h de VMA estimée`;
+        calculated = `${formatNumber(value)} km/h de VMA estimée`;
       }
-      if (type === 'gainage') calculated = `${value} s/min selon l’unité saisie`;
-      if (type === 'rabit') calculated = `RABIT enregistré : ${value}`;
+      if (type === 'gainage') calculated = `${formatNumber(value)} selon l’unité saisie`;
+      if (type === 'rabit') calculated = `RABIT enregistré : ${formatNumber(value)}`;
 
       if (vmaEstimate) {
         interpretation = vmaEstimate < 12 ? 'Base aérobie à construire progressivement.' : vmaEstimate < 15 ? 'Base correcte, travail régulier à consolider.' : vmaEstimate < 18 ? 'Bon niveau aérobie, séances calibrées possibles.' : 'Niveau élevé, attention à la récupération et à la progressivité.';
       } else if (type === 'rabit') {
         interpretation = 'Le RABIT sert surtout à croiser intensité, ressenti et tolérance. Il doit être interprété avec les séances récentes.';
       }
+    } else {
+      interpretation = 'Aucun nombre exploitable détecté. Exemple : 14,5 km/h, palier 14, 2800 m.';
     }
 
     return { calculated, interpretation, vmaEstimate };
@@ -555,6 +578,11 @@
     const limit = new Date();
     limit.setDate(limit.getDate() - days);
     return date >= limit;
+  }
+
+  function extractNumber(value) {
+    const match = String(value || '').replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : 0;
   }
 
   function formatNumber(value) {
