@@ -206,6 +206,35 @@
     writeCollections(collections);
   }
 
+  function exportData() {
+    return {
+      app: 'Momentum',
+      schema: 'momentum_v2_local_data',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        goals: readGoals(),
+        actions: readActions(),
+        logs: readLogs(),
+        collections: readCollections(),
+      },
+    };
+  }
+
+  function importData(payload) {
+    const source = payload?.data || payload;
+    if (!source || typeof source !== 'object') throw new Error('Fichier de sauvegarde invalide.');
+    const goals = Array.isArray(source.goals) ? source.goals.map(normalizeGoal) : [];
+    const actions = Array.isArray(source.actions) ? source.actions.map(normalizeAction) : [];
+    const logs = Array.isArray(source.logs) ? source.logs.map(normalizeLog) : [];
+    const collections = source.collections && typeof source.collections === 'object' && !Array.isArray(source.collections) ? source.collections : {};
+    writeGoals(goals);
+    writeActions(actions);
+    writeLogs(logs);
+    writeCollections(collections);
+    return { goals: goals.length, actions: actions.length, logs: logs.length, collections: Object.keys(collections).length };
+  }
+
   function getGoalSummary(space) {
     const goals = listGoals(space);
     const active = goals.filter(goal => goal.status === 'active');
@@ -254,6 +283,8 @@
     createItem,
     updateItem,
     deleteItem,
+    exportData,
+    importData,
     getGoalSummary,
     horizonLabel,
     priorityLabel,
