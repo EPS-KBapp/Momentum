@@ -23,7 +23,8 @@
 
   function openSpace(space) {
     showScreen(`#space-${space}`);
-    renderSpace(space);
+    if (space === 'chill') initLegacyChill();
+    else renderSpace(space);
   }
 
   function goHome() {
@@ -42,6 +43,52 @@
       const el = qs(`[data-summary="${space}"]`);
       if (el) el.textContent = MomentumGoals.getGoalSummary(space);
     });
+  }
+
+  function initLegacyChill() {
+    const host = qs('[data-chill-host]');
+    if (!host) return;
+
+    let frame = qs('iframe', host);
+    if (!frame) {
+      host.innerHTML = '<div class="legacy-loading">Chargement de Chill…</div>';
+      frame = document.createElement('iframe');
+      frame.className = 'legacy-frame';
+      frame.title = 'Chill — module existant';
+      frame.src = '../index.html?momentum_v2=chill';
+      frame.addEventListener('load', () => openChillInFrame(frame));
+      host.appendChild(frame);
+    } else {
+      openChillInFrame(frame);
+    }
+  }
+
+  function openChillInFrame(frame) {
+    const loading = frame.parentElement?.querySelector('.legacy-loading');
+    const win = frame.contentWindow;
+    if (!win) return;
+
+    let attempts = 0;
+    const maxAttempts = 40;
+    const timer = setInterval(() => {
+      attempts += 1;
+      try {
+        if (typeof win.enterApp === 'function') {
+          win.enterApp('chill');
+          if (loading) loading.remove();
+          frame.classList.add('ready');
+          clearInterval(timer);
+        }
+      } catch (error) {
+        clearInterval(timer);
+        if (loading) loading.textContent = 'Chill n’a pas pu être ouvert automatiquement. Tu peux réessayer en revenant à l’accueil.';
+        console.error('Legacy Chill bridge:', error);
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(timer);
+        if (loading) loading.textContent = 'Chill met trop de temps à répondre. Recharge la page v2 pour réessayer.';
+      }
+    }, 150);
   }
 
   function bindShell() {
