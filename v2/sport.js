@@ -22,14 +22,20 @@
   function renderOverview(root) {
     const panel = root.querySelector('[data-panel="overview"]');
     const goals = MomentumGoals.listGoals('sport');
+    const activeGoals = goals.filter(goal => goal.status === 'active');
+    const planned = MomentumGoals.listActions('sport').filter(action => action.status === 'planned');
+    const logs = MomentumGoals.listLogs('sport');
+    const tests = MomentumGoals.listItems('sport_tests');
     panel.innerHTML = `
+      <div class="metric-grid">
+        <article class="metric-card"><strong>${activeGoals.length}</strong><span>objectif(s) actif(s)</span></article>
+        <article class="metric-card"><strong>${planned.length}</strong><span>séance(s) prévue(s)</span></article>
+        <article class="metric-card"><strong>${logs.length}</strong><span>séance(s) validée(s)</span></article>
+        <article class="metric-card"><strong>${tests.length}</strong><span>test(s) enregistré(s)</span></article>
+      </div>
       <article class="panel">
-        <h3>Vue Sport</h3>
-        <p>${goals.length ? `${goals.length} objectif(s) sportif(s) créé(s).` : 'Commence par créer un objectif sportif court, moyen ou long terme.'}</p>
-      </article>
-      <article class="panel">
-        <h3>Prochaine brique</h3>
-        <p>Le programme hebdomadaire et la validation prévu/réalisé seront développés après validation de la coque.</p>
+        <h3>Prochaine séance</h3>
+        ${planned[0] ? renderActionMini(planned[0]) : '<p>Aucune séance planifiée. Ajoute une séance dans Programme.</p>'}
       </article>
     `;
   }
@@ -41,30 +47,119 @@
   }
 
   function renderProgram(root) {
-    root.querySelector('[data-panel="program"]').innerHTML = `
-      <article class="panel">
-        <h3>Programme hebdomadaire</h3>
-        <p>À venir : choisir le sport, le jour, le contenu prévu, l’objectif de séance et l’intensité.</p>
-      </article>
-    `;
+    const panel = root.querySelector('[data-panel="program"]');
+    panel.innerHTML = actionForm('sport', categories, {
+      title: 'Planifier une séance',
+      placeholder: 'Ex. VMA courte, sortie longue, renforcement haut du corps',
+      intensity: 'Ex. facile, modérée, intense, RPE 7/10',
+      content: 'Objectif, exercices, séries, distance, allure ou contenu prévu',
+    }) + actionList('sport');
+    bindActionForm(panel, 'sport');
   }
 
   function renderSessions(root) {
-    root.querySelector('[data-panel="sessions"]').innerHTML = `
-      <article class="panel">
-        <h3>Séances réalisées</h3>
-        <p>À venir : valider une séance, saisir le réalisé et comparer prévu/réalisé.</p>
-      </article>
-    `;
+    const panel = root.querySelector('[data-panel="sessions"]');
+    panel.innerHTML = logForm('sport', {
+      title: 'Valider une séance',
+      placeholder: 'Ex. Footing ajouté sans planification',
+      content: 'Durée, distance, exercices réalisés, sensations, douleur éventuelle',
+    }) + logList('sport');
+    bindLogForm(panel, 'sport');
   }
 
   function renderProfile(root) {
-    root.querySelector('[data-panel="profile"]').innerHTML = `
+    const panel = root.querySelector('[data-panel="profile"]');
+    const profile = MomentumGoals.listItems('sport_profile')[0] || {};
+    panel.innerHTML = `
       <article class="panel">
-        <h3>Tests / Profil</h3>
-        <p>À venir : VAMEVAL, Cooper/demi-Cooper, RABIT, profil sportif et historique des tests.</p>
+        <h3>Profil sportif</h3>
+        <form class="goal-form" data-sport-profile>
+          <label class="field"><span>Sports pratiqués</span><input name="sports" value="${e(profile.sports)}" placeholder="Course, renforcement, vélo…" /></label>
+          <label class="field"><span>Fréquence visée</span><input name="frequency" value="${e(profile.frequency)}" placeholder="Ex. 3 séances / semaine" /></label>
+          <label class="field"><span>VMA estimée</span><input name="vma" type="number" step="0.1" value="${e(profile.vma)}" placeholder="km/h" /></label>
+          <label class="field"><span>FC repos</span><input name="hrRest" type="number" value="${e(profile.hrRest)}" placeholder="bpm" /></label>
+          <label class="field"><span>FC max</span><input name="hrMax" type="number" value="${e(profile.hrMax)}" placeholder="bpm" /></label>
+          <label class="field"><span>Fatigue / douleurs actuelles</span><textarea name="notes" placeholder="Fatigue, douleurs, vigilance…">${e(profile.notes)}</textarea></label>
+          <button class="primary-btn" type="submit">Sauvegarder le profil</button>
+        </form>
       </article>
+      <article class="panel">
+        <h3>Ajouter un test</h3>
+        <form class="goal-form" data-sport-test>
+          <label class="field"><span>Type</span><select name="type"><option value="vameval">VAMEVAL / VMA directe</option><option value="cooper">Cooper 12 min</option><option value="demi-cooper">Demi-Cooper 6 min</option><option value="rabit">RABIT</option><option value="gainage">Gainage</option></select></label>
+          <label class="field"><span>Date</span><input name="date" type="date" value="${MomentumGoals.today()}" /></label>
+          <label class="field"><span>Résultat brut</span><input name="raw" required placeholder="Ex. 15 km/h, 2800 m, palier 14, 2 min 30" /></label>
+          <label class="field"><span>Notes</span><textarea name="notes" placeholder="Conditions du test, ressenti, contexte"></textarea></label>
+          <button class="primary-btn" type="submit">Analyser / enregistrer</button>
+        </form>
+      </article>
+      ${renderTests()}
     `;
+    bindProfile(panel);
+  }
+
+  function bindProfile(panel) {
+    const profileForm = panel.querySelector('[data-sport-profile]');
+    profileForm?.addEventListener('submit', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(profileForm).entries());
+      const existing = MomentumGoals.listItems('sport_profile')[0];
+      if (existing) MomentumGoals.updateItem('sport_profile', existing.id, data);
+      else MomentumGoals.createItem('sport_profile', data);
+      render(document.querySelector('#space-sport'));
+    });
+
+    const testForm = panel.querySelector('[data-sport-test]');
+    testForm?.addEventListener('submit', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(testForm).entries());
+      MomentumGoals.createItem('sport_tests', { ...data, ...analyzeTest(data.type, data.raw) });
+      render(document.querySelector('#space-sport'));
+    });
+
+    panel.addEventListener('click', event => {
+      const id = event.target.closest('[data-delete-test]')?.dataset.deleteTest;
+      if (id) {
+        MomentumGoals.deleteItem('sport_tests', id);
+        render(document.querySelector('#space-sport'));
+      }
+    }, { once: true });
+  }
+
+  function analyzeTest(type, raw) {
+    const value = parseFloat(String(raw).replace(',', '.'));
+    let calculated = '';
+    let interpretation = 'Résultat enregistré. Analyse à affiner selon ton profil et le protocole exact.';
+    if (!Number.isNaN(value)) {
+      if (type === 'demi-cooper') calculated = `${(value / 100).toFixed(1)} km/h de VMA estimée`;
+      if (type === 'cooper') calculated = `${(value / 200).toFixed(1)} km/h de vitesse moyenne sur 12 min`;
+      if (type === 'vameval') calculated = `${value.toFixed(1)} km/h de VMA estimée`;
+      if (type === 'gainage') calculated = `${value} s/min selon l’unité saisie`;
+      const vma = type === 'demi-cooper' ? value / 100 : type === 'cooper' ? value / 200 : type === 'vameval' ? value : null;
+      if (vma) interpretation = vma < 12 ? 'Base aérobie à construire progressivement.' : vma < 15 ? 'Base correcte, travail régulier à consolider.' : vma < 18 ? 'Bon niveau aérobie, séances calibrées possibles.' : 'Niveau élevé, attention à la récupération et à la progressivité.';
+    }
+    return { calculated, interpretation };
+  }
+
+  function renderTests() {
+    const tests = MomentumGoals.listItems('sport_tests');
+    if (!tests.length) return '<div class="empty">Aucun test enregistré.</div>';
+    return `<div class="goal-list">${tests.map(test => `
+      <article class="goal-card">
+        <header><div class="goal-title">${e(test.type).toUpperCase()} · ${e(test.raw)}</div><span class="badge">${e(test.date)}</span></header>
+        ${test.calculated ? `<p class="goal-desc"><strong>${e(test.calculated)}</strong></p>` : ''}
+        <p class="goal-desc">${e(test.interpretation)}</p>
+        ${test.notes ? `<p class="goal-desc">${e(test.notes)}</p>` : ''}
+        <div class="actions-row"><button class="secondary-btn" data-delete-test="${test.id}">Supprimer</button></div>
+      </article>`).join('')}</div>`;
+  }
+
+  function renderActionMini(action) {
+    return `<div class="goal-card"><div class="goal-title">${e(action.title)}</div><div class="goal-meta"><span>${e(action.date)}</span><span>${e(action.category)}</span>${action.plannedDuration ? `<span>${action.plannedDuration} min</span>` : ''}</div>${action.plannedContent ? `<p class="goal-desc">${e(action.plannedContent)}</p>` : ''}</div>`;
+  }
+
+  function e(value) {
+    return MomentumGoals.escapeHtml(value);
   }
 
   window.MomentumSport = { render };
