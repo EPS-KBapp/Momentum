@@ -142,7 +142,7 @@
   }
 
   function tabButton(id, label, count) {
-    return `<button class="${state.tab === id ? 'active' : ''}" data-chill-tab="${id}">${label} · ${count}</button>`;
+    return `<button type="button" class="${state.tab === id ? 'active' : ''}" data-chill-tab="${id}">${label} · ${count}</button>`;
   }
 
   function renderPanel(data) {
@@ -161,8 +161,8 @@
         <p>Liste active : <strong>${escapeHtml(list.icon || '🎁')} ${escapeHtml(list.name || 'Mes envies')}</strong></p>
         ${renderListBar(data)}
         <div class="chill-actions">
-          <button class="chill-btn primary" data-open-chill-form="wish">+ Ajouter une envie</button>
-          <button class="chill-btn" data-open-chill-form="wishlist">+ Nouvelle liste</button>
+          <button class="chill-btn primary" type="button" data-open-chill-form="wish">+ Ajouter une envie</button>
+          <button class="chill-btn" type="button" data-open-chill-form="wishlist">+ Nouvelle liste</button>
         </div>
         ${state.form === 'wish' ? renderWishForm() : ''}
         ${state.form === 'wishlist' ? renderWishListForm() : ''}
@@ -173,7 +173,7 @@
 
   function renderListBar(data) {
     return `<div class="chill-listbar">${data.wishLists.map(list => `
-      <button class="${list.id === state.activeListId ? 'active' : ''}" data-set-list="${list.id}">${escapeHtml(list.icon || '🎁')} ${escapeHtml(list.name || 'Liste')}</button>
+      <button type="button" class="${list.id === state.activeListId ? 'active' : ''}" data-set-list="${list.id}">${escapeHtml(list.icon || '🎁')} ${escapeHtml(list.name || 'Liste')}</button>
     `).join('')}</div>`;
   }
 
@@ -183,7 +183,7 @@
       <section class="chill-panel">
         <h2>Bucket List</h2>
         <p>Films, séries, livres, voyages, expériences… tout ce qui est à vivre.</p>
-        <div class="chill-actions"><button class="chill-btn primary" data-open-chill-form="bucket">+ Ajouter</button></div>
+        <div class="chill-actions"><button class="chill-btn primary" type="button" data-open-chill-form="bucket">+ Ajouter</button></div>
         ${state.form === 'bucket' ? renderBucketForm() : ''}
       </section>
       ${buckets.length ? `<div class="chill-grid">${buckets.map(item => renderCard(item, 'bucket')).join('')}</div>` : '<div class="chill-empty">Aucun élément actif dans la bucket list.</div>'}
@@ -211,7 +211,7 @@
       <section class="chill-panel">
         <h2>Progressions</h2>
         <p>Sagas, séries, animes, livres ou parcours suivis dans le temps.</p>
-        <div class="chill-actions"><button class="chill-btn primary" data-open-chill-form="acc">+ Ajouter une progression</button></div>
+        <div class="chill-actions"><button class="chill-btn primary" type="button" data-open-chill-form="acc">+ Ajouter une progression</button></div>
         ${state.form === 'acc' ? renderAccForm() : ''}
       </section>
       ${data.accs.length ? `<div class="chill-grid">${data.accs.map(renderAcc).join('')}</div>` : '<div class="chill-empty">Aucune progression enregistrée.</div>'}
@@ -243,8 +243,8 @@
             ${archived ? '<span>✓ obtenu</span>' : ''}
           </div>
           <div class="chill-card-actions">
-            ${!archived ? `<button class="chill-small-btn" data-toggle-${type}="${item.id}">✓ Marquer obtenu</button>` : `<button class="chill-small-btn" data-toggle-${type}="${item.id}">↩ Remettre actif</button>`}
-            <button class="chill-small-btn" data-delete-${type}="${item.id}">Supprimer</button>
+            ${!archived ? `<button class="chill-small-btn" type="button" data-toggle-${type}="${item.id}">✓ Marquer obtenu</button>` : `<button class="chill-small-btn" type="button" data-toggle-${type}="${item.id}">↩ Remettre actif</button>`}
+            <button class="chill-small-btn" type="button" data-delete-${type}="${item.id}">Supprimer</button>
           </div>
         </div>
       </article>
@@ -264,8 +264,8 @@
           <p class="chill-desc">${total ? `${current}/${total}` : `${pct}%`} complété</p>
           <div class="chill-progress"><span style="width:${pct}%"></span></div>
           <div class="chill-card-actions">
-            <button class="chill-small-btn" data-progress-acc="${item.id}">+1</button>
-            <button class="chill-small-btn" data-delete-acc="${item.id}">Supprimer</button>
+            <button class="chill-small-btn" type="button" data-progress-acc="${item.id}">+1</button>
+            <button class="chill-small-btn" type="button" data-delete-acc="${item.id}">Supprimer</button>
           </div>
         </div>
       </article>
@@ -282,7 +282,7 @@
 
   function renderWishListForm() {
     return `
-      <form class="chill-form-grid" data-chill-form="wishlist">
+      <form class="chill-form-grid" data-chill-form="wishlist" novalidate>
         <label class="chill-field"><span>Nom de la liste</span><input name="name" required placeholder="Ex. Noël, Anniversaire, Ma liste"></label>
         <label class="chill-field"><span>Icône</span><input name="icon" value="🎁" maxlength="4"></label>
         <div class="chill-form-actions">
@@ -295,7 +295,7 @@
 
   function renderItemForm(type, title, placeholder, includePrice) {
     return `
-      <form class="chill-form-grid" data-chill-form="${type}">
+      <form class="chill-form-grid" data-chill-form="${type}" novalidate>
         <h3>${title}</h3>
         <label class="chill-field"><span>Titre</span><input name="name" required placeholder="${placeholder}"></label>
         <label class="chill-field"><span>Catégorie</span><select name="cat">${categoryOptions()}</select></label>
@@ -313,7 +313,7 @@
 
   function renderAccForm() {
     return `
-      <form class="chill-form-grid" data-chill-form="acc">
+      <form class="chill-form-grid" data-chill-form="acc" novalidate>
         <h3>Nouvelle progression</h3>
         <label class="chill-field"><span>Titre</span><input name="name" required placeholder="Ex. Naruto Shippuden, One Piece, Série"></label>
         <label class="chill-field"><span>Catégorie</span><select name="cat">${categoryOptions('série')}</select></label>
@@ -336,16 +336,38 @@
     host.dataset.chillBound = 'true';
 
     host.addEventListener('click', event => {
+      const cancelButton = event.target.closest('[data-close-chill-form]');
+      if (cancelButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelButton.blur?.();
+        state.form = null;
+        return requestAnimationFrame(() => rerender(host));
+      }
+
       const tab = event.target.closest('[data-chill-tab]')?.dataset.chillTab;
-      if (tab) { state.tab = tab; state.form = null; return rerender(host); }
+      if (tab) {
+        event.preventDefault();
+        state.tab = tab;
+        state.form = null;
+        return rerender(host);
+      }
 
       const listId = event.target.closest('[data-set-list]')?.dataset.setList;
-      if (listId) { state.activeListId = listId; state.form = null; sSet('wlists_active', listId); return rerender(host); }
+      if (listId) {
+        event.preventDefault();
+        state.activeListId = listId;
+        state.form = null;
+        sSet('wlists_active', listId);
+        return rerender(host);
+      }
 
       const formType = event.target.closest('[data-open-chill-form]')?.dataset.openChillForm;
-      if (formType) { state.form = state.form === formType ? null : formType; return rerender(host); }
-
-      if (event.target.closest('[data-close-chill-form]')) { state.form = null; return rerender(host); }
+      if (formType) {
+        event.preventDefault();
+        state.form = state.form === formType ? null : formType;
+        return rerender(host);
+      }
 
       const actions = [
         ['toggleWish', '[data-toggle-wish]', 'toggleWish'],
@@ -357,7 +379,10 @@
       ];
       for (const [, selector, fn] of actions) {
         const el = event.target.closest(selector);
-        if (el) return mutate(host, fn, el.dataset[fn]);
+        if (el) {
+          event.preventDefault();
+          return mutate(host, fn, el.dataset[fn]);
+        }
       }
     });
 
@@ -365,12 +390,14 @@
       const form = event.target.closest('[data-chill-form]');
       if (!form) return;
       event.preventDefault();
+      event.stopPropagation();
       submitForm(host, form.dataset.chillForm, Object.fromEntries(new FormData(form).entries()));
     });
   }
 
   function rerender(host) {
     const root = host.closest('#space-chill');
+    if (!root) return;
     render(root);
   }
 
