@@ -7,10 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Momentum v2</title>
-  <link rel="stylesheet" href="./styles.css?v=20260715-core-bindings1" />
+  <link rel="stylesheet" href="./styles.css?v=20260715-data-tools1" />
 </head>
 <body>
-  <main class="shell" id="app" data-build="core-bindings1">
+  <main class="shell" id="app" data-build="data-tools1">
     <section class="screen active" id="home-screen" aria-labelledby="home-title">
       <header class="home-hero">
         <p class="eyebrow">Momentum v2</p>
@@ -47,6 +47,16 @@
           <span class="space-meta" data-summary="brain">Aucun objectif pour le moment</span>
         </button>
       </div>
+
+      <article class="panel home-tools" aria-labelledby="data-title">
+        <h3 id="data-title">Sauvegarde v2</h3>
+        <p>Exporte ou réimporte les données locales de Sport, Hobbies et Brain. Chill garde sa sauvegarde historique séparée dans l’application stable.</p>
+        <div class="actions-row">
+          <button class="primary-btn" type="button" data-export-v2>Exporter la sauvegarde v2</button>
+          <label class="secondary-btn" for="import-v2-file">Importer une sauvegarde</label>
+          <input id="import-v2-file" data-import-v2 type="file" accept="application/json,.json" hidden>
+        </div>
+      </article>
     </section>
 
     <section class="screen screen--embedded" id="space-chill" aria-labelledby="chill-title">
@@ -60,7 +70,7 @@
         <iframe
           class="legacy-frame ready"
           title="Chill stable complet intégré"
-          src="https://eps-kbapp.github.io/Momentum/?from=v2-core-bindings1"
+          src="https://eps-kbapp.github.io/Momentum/?from=v2-data-tools1"
           loading="eager"
           allow="clipboard-read; clipboard-write"
         ></iframe>
@@ -130,10 +140,10 @@
     </section>
   </main>
 
-  <script src="./goals-core.js?v=20260715-core-bindings1"></script>
-  <script src="./sport.js?v=20260715-core-bindings1"></script>
-  <script src="./hobbies.js?v=20260715-core-bindings1"></script>
-  <script src="./brain.js?v=20260715-core-bindings1"></script>
-  <script src="./app.js?v=20260715-core-bindings1"></script>
+  <script src="./goals-core.js?v=20260715-data-tools1"></script>
+  <script src="./sport.js?v=20260715-data-tools1"></script>
+  <script src="./hobbies.js?v=20260715-data-tools1"></script>
+  <script src="./brain.js?v=20260715-data-tools1"></script>
+  <script src="./app.js?v=20260715-data-tools1"></script>
 </body>
 </html>
