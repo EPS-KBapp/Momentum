@@ -72,6 +72,18 @@
     return '<option value="">Aucun objectif lié</option>' + goals.map(goal => `<option value="${goal.id}">${escapeHtml(goal.title)}</option>`).join('');
   }
 
+  function bindFormOnce(form, flag, handler) {
+    if (!form || form.dataset[flag] === 'true') return;
+    form.dataset[flag] = 'true';
+    form.addEventListener('submit', handler);
+  }
+
+  function bindPanelOnce(panel, flag, handler) {
+    if (!panel || panel.dataset[flag] === 'true') return;
+    panel.dataset[flag] = 'true';
+    panel.addEventListener('click', handler);
+  }
+
   window.goalForm = function goalForm(space, categories) {
     return `
       <article class="panel">
@@ -106,8 +118,8 @@
           ${goal.targetDate ? `<span>Échéance : ${goal.targetDate}</span>` : ''}
         </div>
         <div class="actions-row">
-          ${goal.status !== 'done' ? `<button class="secondary-btn" data-complete-goal="${goal.id}">Terminer</button>` : ''}
-          <button class="secondary-btn" data-delete-goal="${goal.id}">Supprimer</button>
+          ${goal.status !== 'done' ? `<button class="secondary-btn" type="button" data-complete-goal="${goal.id}">Terminer</button>` : `<button class="secondary-btn" type="button" data-reactivate-goal="${goal.id}">Réactiver</button>`}
+          <button class="secondary-btn" type="button" data-delete-goal="${goal.id}">Supprimer</button>
         </div>
       </article>
     `).join('')}</div>`;
@@ -147,7 +159,10 @@
           ${action.plannedIntensity ? `<span>${escapeHtml(action.plannedIntensity)}</span>` : ''}
         </div>
         ${action.plannedContent ? `<p class="goal-desc">${escapeHtml(action.plannedContent)}</p>` : ''}
-        <div class="actions-row"><button class="secondary-btn" data-delete-action="${action.id}">Supprimer</button></div>
+        <div class="actions-row">
+          ${action.status === 'planned' ? `<button class="secondary-btn" type="button" data-complete-action="${action.id}">Marquer réalisé</button>` : `<button class="secondary-btn" type="button" data-reopen-action="${action.id}">Remettre prévu</button>`}
+          <button class="secondary-btn" type="button" data-delete-action="${action.id}">Supprimer</button>
+        </div>
       </article>
     `).join('')}</div>`;
   };
@@ -187,77 +202,80 @@
           ${log.feeling ? `<span>Ressenti ${log.feeling}/10</span>` : ''}
         </div>
         ${log.realContent ? `<p class="goal-desc">${escapeHtml(log.realContent)}</p>` : ''}
-        <div class="actions-row"><button class="secondary-btn" data-delete-log="${log.id}">Supprimer</button></div>
+        <div class="actions-row"><button class="secondary-btn" type="button" data-delete-log="${log.id}">Supprimer</button></div>
       </article>
     `).join('')}</div>`;
   };
 
   window.bindGoalForm = function bindGoalForm(panel, space) {
     const form = qs(`[data-goal-form="${space}"]`, panel);
-    if (form) {
-      form.addEventListener('submit', event => {
-        event.preventDefault();
-        const data = Object.fromEntries(new FormData(form).entries());
-        MomentumGoals.createGoal({ ...data, space });
-        form.reset();
-        renderSpace(space);
-        renderSummaries();
-      });
-    }
-    panel.addEventListener('click', event => {
+    bindFormOnce(form, 'bound', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      MomentumGoals.createGoal({ ...data, space });
+      form.reset();
+      renderSpace(space);
+      renderSummaries();
+    });
+
+    bindPanelOnce(panel, 'goalActionsBound', event => {
       const completeId = event.target.closest('[data-complete-goal]')?.dataset.completeGoal;
+      const reactivateId = event.target.closest('[data-reactivate-goal]')?.dataset.reactivateGoal;
       const deleteId = event.target.closest('[data-delete-goal]')?.dataset.deleteGoal;
       if (completeId) MomentumGoals.updateGoal(completeId, { status: 'done', progress: 100 });
+      if (reactivateId) MomentumGoals.updateGoal(reactivateId, { status: 'active', progress: 0 });
       if (deleteId) MomentumGoals.deleteGoal(deleteId);
-      if (completeId || deleteId) {
+      if (completeId || reactivateId || deleteId) {
         renderSpace(space);
         renderSummaries();
       }
-    }, { once: true });
+    });
   };
 
   window.bindActionForm = function bindActionForm(panel, space) {
     const form = qs(`[data-action-form="${space}"]`, panel);
-    if (form) {
-      form.addEventListener('submit', event => {
-        event.preventDefault();
-        const data = Object.fromEntries(new FormData(form).entries());
-        MomentumGoals.createAction({ ...data, space });
-        form.reset();
-        renderSpace(space);
-        renderSummaries();
-      });
-    }
-    panel.addEventListener('click', event => {
-      const id = event.target.closest('[data-delete-action]')?.dataset.deleteAction;
-      if (id) {
-        MomentumGoals.deleteAction(id);
+    bindFormOnce(form, 'bound', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      MomentumGoals.createAction({ ...data, space });
+      form.reset();
+      renderSpace(space);
+      renderSummaries();
+    });
+
+    bindPanelOnce(panel, 'actionActionsBound', event => {
+      const doneId = event.target.closest('[data-complete-action]')?.dataset.completeAction;
+      const reopenId = event.target.closest('[data-reopen-action]')?.dataset.reopenAction;
+      const deleteId = event.target.closest('[data-delete-action]')?.dataset.deleteAction;
+      if (doneId) MomentumGoals.updateAction(doneId, { status: 'done' });
+      if (reopenId) MomentumGoals.updateAction(reopenId, { status: 'planned' });
+      if (deleteId) MomentumGoals.deleteAction(deleteId);
+      if (doneId || reopenId || deleteId) {
         renderSpace(space);
         renderSummaries();
       }
-    }, { once: true });
+    });
   };
 
   window.bindLogForm = function bindLogForm(panel, space) {
     const form = qs(`[data-log-form="${space}"]`, panel);
-    if (form) {
-      form.addEventListener('submit', event => {
-        event.preventDefault();
-        const data = Object.fromEntries(new FormData(form).entries());
-        MomentumGoals.createLog({ ...data, space });
-        form.reset();
-        renderSpace(space);
-        renderSummaries();
-      });
-    }
-    panel.addEventListener('click', event => {
+    bindFormOnce(form, 'bound', event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      MomentumGoals.createLog({ ...data, space });
+      form.reset();
+      renderSpace(space);
+      renderSummaries();
+    });
+
+    bindPanelOnce(panel, 'logActionsBound', event => {
       const id = event.target.closest('[data-delete-log]')?.dataset.deleteLog;
       if (id) {
         MomentumGoals.deleteLog(id);
         renderSpace(space);
         renderSummaries();
       }
-    }, { once: true });
+    });
   };
 
   function escapeHtml(value) {
