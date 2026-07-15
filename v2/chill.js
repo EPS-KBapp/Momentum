@@ -256,6 +256,8 @@
   }
 
   function bind(host) {
+    if (host.dataset.chillBound === 'true') return;
+    host.dataset.chillBound = 'true';
     host.addEventListener('click', event => {
       const tab = event.target.closest('[data-chill-tab]')?.dataset.chillTab;
       if (tab) { state.tab = tab; return rerender(host); }
@@ -280,7 +282,7 @@
         const el = event.target.closest(selector);
         if (el) return mutate(host, fn, el.dataset[fn]);
       }
-    }, { once: true });
+    });
   }
 
   function rerender(host) {
