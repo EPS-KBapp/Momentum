@@ -61,6 +61,55 @@
         qsa('.tab-panel', screen).forEach(panel => panel.classList.toggle('active', panel.dataset.panel === button.dataset.tab));
       });
     });
+    bindDataTools();
+  }
+
+  function bindDataTools() {
+    const exportBtn = qs('[data-export-v2]');
+    const importInput = qs('[data-import-v2]');
+
+    if (exportBtn && exportBtn.dataset.bound !== 'true') {
+      exportBtn.dataset.bound = 'true';
+      exportBtn.addEventListener('click', () => {
+        const data = MomentumGoals.exportData();
+        const date = new Date().toISOString().slice(0, 10);
+        downloadJson(`momentum-v2-sauvegarde-${date}.json`, data);
+      });
+    }
+
+    if (importInput && importInput.dataset.bound !== 'true') {
+      importInput.dataset.bound = 'true';
+      importInput.addEventListener('change', async event => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const json = JSON.parse(text);
+          const ok = confirm('Importer cette sauvegarde remplacera les données v2 actuelles de Sport, Hobbies et Brain. Continuer ?');
+          if (!ok) return;
+          const result = MomentumGoals.importData(json);
+          renderSummaries();
+          alert(`Import terminé : ${result.goals} objectif(s), ${result.actions} action(s), ${result.logs} réalisation(s).`);
+        } catch (error) {
+          alert('Import impossible : le fichier ne semble pas être une sauvegarde Momentum v2 valide.');
+          console.error(error);
+        } finally {
+          event.target.value = '';
+        }
+      });
+    }
+  }
+
+  function downloadJson(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function optionList(items, selected = '') {
