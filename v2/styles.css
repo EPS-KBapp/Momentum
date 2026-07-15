@@ -24,6 +24,7 @@ button{cursor:pointer}
 .shell{height:100dvh;overflow:hidden;position:relative;background:radial-gradient(circle at top left,rgba(128,119,255,.18),transparent 32%),linear-gradient(145deg,#11111a,#0b0b10)}
 .screen{display:none;height:100dvh;overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 22px) 18px calc(env(safe-area-inset-bottom,0px) + 24px)}
 .screen.active{display:block}
+.screen--embedded{padding:0;overflow:hidden;background:#0b0b10}
 
 .home-hero{margin:14px 0 22px}
 .eyebrow{margin:0 0 7px;color:var(--muted-2);font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
@@ -56,6 +57,15 @@ p{color:var(--muted);line-height:1.55}
 .panel{border:1px solid var(--line);border-radius:var(--radius);background:rgba(255,255,255,.055);padding:17px;margin:12px 0}
 .primary-link,.primary-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:14px;background:#f5f3ee;color:#15151c;font-weight:850;text-decoration:none;padding:12px 14px;margin-top:8px}
 
+.embedded-header{position:absolute;z-index:5;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);display:flex;align-items:center;gap:12px;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:9px 11px;background:rgba(16,16,24,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.embedded-header .back-btn{margin:0;flex:0 0 auto;background:rgba(255,255,255,.12)}
+.embedded-header h2{font-size:18px;letter-spacing:-.03em}
+.embedded-header .eyebrow{font-size:10px;margin:0 0 2px}
+.legacy-frame-shell{height:100dvh;position:relative;background:#0b0b10;overflow:hidden}
+.legacy-frame{width:100%;height:100%;border:0;display:block;background:#0b0b10;opacity:0;transition:opacity .25s ease}
+.legacy-frame.ready{opacity:1}
+.legacy-loading{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted);font-weight:750;background:#0b0b10;z-index:2}
+
 .subnav{display:flex;gap:8px;overflow:auto;padding:4px 0 12px;margin:0 -2px 8px}
 .subnav button{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--muted);border-radius:999px;padding:10px 13px;white-space:nowrap;font-weight:750}
 .subnav button.active{background:#f5f3ee;color:#15151c}
@@ -82,4 +92,5 @@ p{color:var(--muted);line-height:1.55}
   .space-grid{grid-template-columns:1fr}
   .space-card{min-height:150px}
   .screen{padding-left:14px;padding-right:14px}
+  .screen--embedded{padding:0}
 }
