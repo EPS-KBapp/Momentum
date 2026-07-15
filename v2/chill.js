@@ -42,7 +42,7 @@
     shell.innerHTML = `
       <article class="panel">
         <h3>Chill natif</h3>
-        <p>Les envies, la bucket list et l’obtenu utilisent les clés historiques du Chill stable. Les nouvelles envies peuvent rechercher automatiquement une jaquette, couverture ou pochette.</p>
+        <p>Les envies, la bucket list et l’obtenu utilisent les clés historiques du Chill stable. Les nouvelles envies peuvent rechercher plusieurs jaquettes, couvertures ou pochettes.</p>
         <div class="actions-row">
           <a class="secondary-btn" href="https://eps-kbapp.github.io/Momentum/" target="_blank" rel="noopener">Ouvrir Chill stable</a>
         </div>
@@ -161,10 +161,12 @@
           ${Object.entries(typeLabels).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
         </select></label>
         <label class="field"><span>Image / pochette URL</span><input name="image" data-chill-image-input placeholder="Optionnel : sinon recherche automatique" /></label>
+        <input type="hidden" name="coverSource" data-chill-cover-source />
         <div class="actions-row">
           <button class="secondary-btn" type="button" data-chill-cover-search>Rechercher une pochette</button>
         </div>
         <div class="chill-cover-status" data-chill-cover-status hidden></div>
+        <div class="chill-cover-picker" data-chill-cover-picker hidden></div>
         <label class="field"><span>Notes</span><textarea name="notes" placeholder="Pourquoi ça te tente ? Avec qui ? Où ?"></textarea></label>
         <button class="primary-btn" type="submit">Ajouter</button>
       </form>
@@ -209,9 +211,15 @@
       const deleteBtn = event.target.closest('[data-chill-delete]');
       const obtainBtn = event.target.closest('[data-chill-obtain]');
       const coverBtn = event.target.closest('[data-chill-cover-search]');
+      const coverChoice = event.target.closest('[data-chill-cover-choice]');
       if (tab) {
         state.tab = tab;
         rerender();
+        return;
+      }
+      if (coverChoice) {
+        event.preventDefault();
+        selectCoverChoice(coverChoice.closest('[data-chill-form]'), coverChoice.dataset.chillCoverChoice, coverChoice.dataset.source || 'Sélection');
         return;
       }
       if (coverBtn) {
@@ -248,10 +256,11 @@
       const submit = form.querySelector('[type="submit"]');
       try {
         setBusy(submit, true, 'Ajout…');
-        let cover = data.image ? { image: data.image, coverSource: 'URL manuelle' } : null;
+        let cover = data.image ? { image: data.image, coverSource: data.coverSource || 'URL manuelle' } : null;
         if (!cover) {
-          setFormStatus(form, 'Recherche de pochette en cours…');
-          cover = await findCover(data.title, data.type);
+          setFormStatus(form, 'Recherche de pochettes en cours…');
+          const results = await findCovers(data.title, data.type);
+          cover = results[0] || null;
         }
         const item = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -279,18 +288,18 @@
   async function lookupCoverForForm(form, button) {
     if (!form) return;
     const data = Object.fromEntries(new FormData(form).entries());
-    const imageInput = form.querySelector('[data-chill-image-input]');
     if (!data.title) {
       setFormStatus(form, 'Ajoute d’abord un titre pour lancer la recherche.', true);
       return;
     }
     try {
       setBusy(button, true, 'Recherche…');
-      setFormStatus(form, 'Recherche de pochette en cours…');
-      const cover = await findCover(data.title, data.type);
-      if (cover?.image) {
-        if (imageInput) imageInput.value = cover.image;
-        setFormStatus(form, `Pochette trouvée : ${cover.coverSource}. Tu peux maintenant ajouter.`);
+      setFormStatus(form, 'Recherche de pochettes en cours…');
+      const covers = await findCovers(data.title, data.type);
+      renderCoverChoices(form, covers);
+      if (covers.length) {
+        selectCoverChoice(form, covers[0].image, covers[0].coverSource);
+        setFormStatus(form, `${covers.length} pochette(s) trouvée(s). Choisis celle que tu veux garder.`);
       } else {
         setFormStatus(form, 'Aucune pochette trouvée automatiquement. Tu peux ajouter quand même ou coller une URL.', true);
       }
@@ -302,19 +311,26 @@
     }
   }
 
-  async function findCover(title, type) {
+  async function findCovers(title, type) {
     const query = String(title || '').trim();
-    if (!query) return {};
+    if (!query) return [];
     const sources = coverSources(type);
+    const results = [];
     for (const source of sources) {
       try {
-        const result = await source(query, type);
-        if (result?.image) return result;
+        const items = await source(query, type);
+        const normalized = Array.isArray(items) ? items : (items ? [items] : []);
+        normalized.forEach(item => {
+          if (!item?.image) return;
+          if (results.some(existing => existing.image === item.image)) return;
+          results.push(item);
+        });
+        if (results.length >= 6) break;
       } catch (error) {
         console.warn('Chill cover lookup failed', source.name, error);
       }
     }
-    return { image: '', coverSource: 'Aucune pochette trouvée automatiquement' };
+    return results.slice(0, 6);
   }
 
   function coverSources(type) {
@@ -328,50 +344,60 @@
   }
 
   async function searchOpenLibrary(query) {
-    const data = await fetchJson(`https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&limit=1`);
-    const doc = data?.docs?.[0];
-    if (!doc?.cover_i) return null;
-    return { image: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`, coverSource: 'OpenLibrary' };
+    const data = await fetchJson(`https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&limit=6`);
+    return (data?.docs || []).filter(doc => doc?.cover_i).slice(0, 6).map(doc => ({
+      image: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
+      coverSource: 'OpenLibrary',
+    }));
   }
 
   async function searchJikan(query, type) {
     const endpoint = type === 'manga' ? 'manga' : 'anime';
-    const data = await fetchJson(`https://api.jikan.moe/v4/${endpoint}?q=${encodeURIComponent(query)}&limit=1`);
-    const item = data?.data?.[0];
-    const image = item?.images?.jpg?.image_url || item?.images?.webp?.image_url || item?.images?.jpg?.large_image_url;
-    return image ? { image, coverSource: 'Jikan / MyAnimeList' } : null;
+    const data = await fetchJson(`https://api.jikan.moe/v4/${endpoint}?q=${encodeURIComponent(query)}&limit=6`);
+    return (data?.data || []).map(item => {
+      const image = item?.images?.jpg?.image_url || item?.images?.webp?.image_url || item?.images?.jpg?.large_image_url;
+      return image ? { image, coverSource: 'Jikan / MyAnimeList' } : null;
+    }).filter(Boolean).slice(0, 6);
   }
 
   async function searchTmdbMovie(query) {
-    if (!TMDB_KEY) return null;
+    if (!TMDB_KEY) return [];
     const data = await fetchJson(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&include_adult=false`);
-    const item = data?.results?.find(result => result.poster_path) || data?.results?.[0];
-    return item?.poster_path ? { image: `https://image.tmdb.org/t/p/w342${item.poster_path}`, coverSource: 'TMDB' } : null;
+    return (data?.results || []).filter(result => result.poster_path).slice(0, 6).map(result => ({
+      image: `https://image.tmdb.org/t/p/w342${result.poster_path}`,
+      coverSource: 'TMDB',
+    }));
   }
 
   async function searchTmdbTv(query) {
-    if (!TMDB_KEY) return null;
+    if (!TMDB_KEY) return [];
     const data = await fetchJson(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&language=fr-FR&query=${encodeURIComponent(query)}&include_adult=false`);
-    const item = data?.results?.find(result => result.poster_path) || data?.results?.[0];
-    return item?.poster_path ? { image: `https://image.tmdb.org/t/p/w342${item.poster_path}`, coverSource: 'TMDB' } : null;
+    return (data?.results || []).filter(result => result.poster_path).slice(0, 6).map(result => ({
+      image: `https://image.tmdb.org/t/p/w342${result.poster_path}`,
+      coverSource: 'TMDB',
+    }));
   }
 
   async function searchRawg(query) {
     const key = RAWG_KEY ? `&key=${RAWG_KEY}` : '';
-    const data = await fetchJson(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=1${key}`);
-    const item = data?.results?.[0];
-    return item?.background_image ? { image: item.background_image, coverSource: 'RAWG' } : null;
+    const data = await fetchJson(`https://api.rawg.io/api/games?search=${encodeURIComponent(query)}&page_size=6${key}`);
+    return (data?.results || []).filter(item => item.background_image).slice(0, 6).map(item => ({
+      image: item.background_image,
+      coverSource: 'RAWG',
+    }));
   }
 
   async function searchMusicBrainz(query) {
-    const data = await fetchJson(`https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=5`);
+    const data = await fetchJson(`https://musicbrainz.org/ws/2/release/?query=${encodeURIComponent(query)}&fmt=json&limit=8`);
     const releases = data?.releases || [];
+    const covers = [];
     for (const release of releases) {
       if (!release?.id) continue;
       const cover = await searchCoverArtArchive(release.id);
-      if (cover?.image) return cover;
+      if (cover?.image && !covers.some(item => item.image === cover.image)) covers.push(cover);
+      if (covers.length >= 6) break;
     }
-    return null;
+    return covers;
   }
 
   async function searchCoverArtArchive(releaseId) {
@@ -382,6 +408,35 @@
     } catch (error) {
       return null;
     }
+  }
+
+  function renderCoverChoices(form, covers) {
+    const picker = form?.querySelector('[data-chill-cover-picker]');
+    if (!picker) return;
+    if (!covers.length) {
+      picker.hidden = true;
+      picker.innerHTML = '';
+      return;
+    }
+    picker.hidden = false;
+    picker.innerHTML = `
+      <p>Choisis une pochette :</p>
+      <div class="chill-cover-options">
+        ${covers.map((cover, index) => `
+          <button type="button" class="chill-cover-choice ${index === 0 ? 'active' : ''}" data-chill-cover-choice="${e(cover.image)}" data-source="${e(cover.coverSource)}" aria-label="Choisir la pochette ${index + 1}">
+            <img src="${e(cover.image)}" alt="" loading="lazy">
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function selectCoverChoice(form, image, source) {
+    const imageInput = form?.querySelector('[data-chill-image-input]');
+    const sourceInput = form?.querySelector('[data-chill-cover-source]');
+    if (imageInput) imageInput.value = image || '';
+    if (sourceInput) sourceInput.value = source || 'Sélection';
+    form?.querySelectorAll('[data-chill-cover-choice]').forEach(button => button.classList.toggle('active', button.dataset.chillCoverChoice === image));
   }
 
   async function fetchJson(url) {
